@@ -18,15 +18,15 @@ This supersedes the earlier used-GPU-market evaluation (RTX 4070 Ti Super / used
 
 **SSH bootstrap is complete** for both cluster nodes: OpenSSH installed and enabled, static IPs set via router DHCP reservation (by MAC), key-based auth set up from the Dell G5 jump box (`~/.ssh/homelab_ed25519`, no passphrase — ed25519 keypair generated in PowerShell, copied via `Get-Content | ssh ... >> authorized_keys` since Windows has no `ssh-copy-id`), and both nodes hardened to key-only auth (password + root login disabled via an `sshd_config.d` drop-in) with no lockouts.
 
-On the portfolio side, Deepesh has drafted resume bullet points for a project section titled "Self-Hosted Data & AI Infrastructure Platform" and has scaffolded the GitHub portfolio repo with `/infra`, `/agents`, and `/docs` directories (including hardware inventory and ADRs under `docs/`, and working SSH bootstrap scripts under `infra/bootstrap/`).
+On the portfolio side, Deepesh has drafted resume bullet points for a project section titled "Self-Hosted Data & AI Infrastructure Platform." The repo is now live and public on GitHub: **https://github.com/DeepeshKashyup/homelab** — pushed from PC 1 via a dedicated SSH deploy key (`~/.ssh/github_ed25519` on PC 1, separate from the jump-box-to-node key), with `/infra`, `/agents`, and `/docs` directories (hardware inventory + ADRs under `docs/`, working SSH bootstrap scripts under `infra/bootstrap/`).
 
 ## On the horizon
 
 - Installing the Kubernetes control plane on PC 2 and joining PC 1 as a GPU-scheduled worker
-- Adding a `~/.ssh/config` block on the Dell G5 for short hostnames (`ssh gpu-node-01` / `ssh control-plane-01`)
-- Getting this repo onto GitHub (currently local-only, living on PC 1) so nodes can `git clone` it directly instead of commands being relayed manually
+- Adding a `~/.ssh/config` block on the Dell G5 for short hostnames (`ssh gpu-node-01` / `ssh control-plane-01`) — done
+- Cloning the repo onto PC 2 and the Dell G5 (currently only pushed from PC 1) so changes don't have to be relayed manually
 - Considering wired Ethernet for PC 2 (currently Wi-Fi via USB adapter) given its control-plane role
-- Completing and publishing the GitHub portfolio (strong README, written walkthrough, optional demo video, LinkedIn project entries)
+- Writing the portfolio README/walkthrough now that the repo is public (strong README, written walkthrough, optional demo video, LinkedIn project entries)
 - Identifying real workload bottlenecks to guide any further hardware expansion
 
 ## Key learnings & principles
