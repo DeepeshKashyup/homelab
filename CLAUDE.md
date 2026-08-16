@@ -12,7 +12,7 @@ Hardware expansion phase 1 is done — two additional nodes have been purchased,
 
 - **PC 1 — GPU workload node (~$800):** AMD Ryzen 7 5700G w/ Radeon Graphics (16 threads), 32GB DDR4 RAM, 512GB SSD, NVIDIA GeForce RTX 5060 Ti (16GB VRAM). Will run GPU-scheduled ML workloads (Ollama inference, etc.).
 - **PC 2 — App / Kubernetes control-plane node:** HP ProDesk G5 800, Intel i5, 32GB DDR4 RAM, 1TB SSD. Will host the K8s control plane and general app workloads.
-- **Dell G5 (GTX 1060)** — original baseline node; role TBD now that dedicated GPU and control-plane nodes exist (likely repurposed as a worker or backup node).
+- **Dell G5 (GTX 1060)** — original baseline node; will **not** join the Kubernetes cluster. Repurposed as the admin/jump box: used to SSH into cluster nodes, install software, and access apps running on the cluster.
 
 This supersedes the earlier used-GPU-market evaluation (RTX 4070 Ti Super / used prebuilt / RTX 5070 Ti system — see `docs/decisions/0001`): rather than bolting a standalone GPU onto the existing Dell G5, Deepesh went with a dedicated GPU node plus a separate control-plane node, giving cleaner workload isolation (control plane kept off the GPU box). Note: "PC 2 — HP ProDesk **G5** 800" shares the "G5" label with the original **Dell G5** baseline node by coincidence — worth using unambiguous hostnames when bootstrapping to avoid confusion.
 
@@ -46,4 +46,4 @@ On the portfolio side, Deepesh has drafted resume bullet points for a project se
 - **ML serving**: Ollama, Open-WebUI
 - **Agentic AI**: LangChain, LangGraph
 - **Portfolio**: GitHub (structured repo), LinkedIn project entries
-- **Current compute nodes**: Dell G5 (GTX 1060, original baseline) · PC 1 GPU node (Ryzen 7 5700G, RTX 5060 Ti 16GB) · PC 2 control-plane node (HP ProDesk G5 800, i5)
+- **Current compute nodes**: Dell G5 (GTX 1060, admin/jump box — not in cluster) · PC 1 GPU node (Ryzen 7 5700G, RTX 5060 Ti 16GB) · PC 2 control-plane node (HP ProDesk G5 800, i5)

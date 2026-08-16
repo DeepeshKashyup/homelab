@@ -20,7 +20,7 @@ Purchased two nodes:
    Intel i5, 32GB DDR4 RAM, 1TB SSD.
    Role: Kubernetes control plane + general app workloads (kept off the GPU box for isolation).
 
-The original **Dell G5 (GTX 1060)** remains in the fleet; its role is TBD (likely repurposed as an additional worker or backup node) now that dedicated GPU and control-plane nodes exist.
+The original **Dell G5 (GTX 1060)** remains in the fleet but will **not** join the Kubernetes cluster. It's repurposed as the admin/jump box: SSH access into cluster nodes, installing/managing cluster software, and accessing apps running on the cluster.
 
 ## Rationale
 
@@ -35,6 +35,6 @@ PC 2 is an "HP ProDesk **G5** 800" — the "G5" in its model name is coincidenta
 ## Follow-ups
 
 - [ ] Confirm/record PC 2 purchase price
-- [ ] Bootstrap both nodes with stable SSH (see `infra/bootstrap/`)
-- [ ] Decide final role for the original Dell G5
+- [ ] Bootstrap both cluster nodes (PC 1, PC 2) with stable SSH (see `infra/bootstrap/`)
+- [ ] Set up Dell G5 as the admin/jump box (kubectl, helm, SSH keys to cluster nodes)
 - [ ] Update `docs/hardware/` inventory once hostnames/IPs are assigned

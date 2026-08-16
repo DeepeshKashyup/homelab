@@ -20,6 +20,10 @@ Baseline compute node for the homelab platform.
 |---|---|---|
 | | | |
 
-## Role in cluster
+## Role
 
-Original baseline node. Now that [PC 1 (dedicated GPU node) and PC 2 (control plane)](../decisions/0002-gpu-and-control-plane-node-purchase.md) have been added, this node's role is TBD — likely repurposed as an additional worker or backup/DR node.
+**Not part of the Kubernetes cluster.** Original baseline node, repurposed as the admin/jump box now that [PC 1 (GPU node) and PC 2 (control plane)](../decisions/0002-gpu-and-control-plane-node-purchase.md) handle cluster duties. Used to:
+
+- SSH into cluster nodes
+- Install/manage software on the cluster (kubectl, helm, etc.)
+- Access apps running on the cluster
