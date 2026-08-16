@@ -13,15 +13,18 @@ App / Kubernetes control-plane node. See [ADR 0002](../decisions/0002-gpu-and-co
 | RAM | 32GB DDR4 |
 | Storage | 1TB SSD |
 | Purchase price | _TBD — not recorded_ |
-| OS | Ubuntu Server (planned) |
-| Hostname | _TBD_ |
-| Static IP | _TBD_ |
+| OS | Ubuntu (version TBD — confirm with `lsb_release -a`) |
+| Hostname | `homelab-01` — generic; consider renaming to something role-specific (e.g. `control-plane-01`) before it joins the cluster |
+| NIC | USB Wi-Fi adapter |
+| MAC | `00:1f:05:62:9a:a6` |
+| DHCP IP (pre-reservation) | `192.168.0.106` |
+| Static IP | _pending router reservation — suggested `192.168.0.102`, or keep `.106`_ |
 
 ## Bootstrap log
 
 | Date | Change | Notes |
 |---|---|---|
-| | | |
+| 2026-08-16 | Confirmed network identity | SSH not yet installed; connecting over Wi-Fi (USB adapter) — consider wired for a control-plane node's reliability |
 
 ## Role in cluster
 
