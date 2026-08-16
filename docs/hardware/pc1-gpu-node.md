@@ -14,8 +14,7 @@ Dedicated GPU workload node. See [ADR 0002](../decisions/0002-gpu-and-control-pl
 | OS | Ubuntu 26.04 LTS |
 | Hostname | `gpu-node-01` |
 | MAC | `d8:5e:d3:05:3e:af` (enp6s0) |
-| DHCP IP (pre-reservation) | `192.168.0.79` |
-| Static IP | _pending router reservation — suggested `192.168.0.101`, or keep `.79`_ |
+| Static IP | `192.168.0.79` (DHCP reservation set on router) |
 | NVIDIA driver | 595.84, CUDA 13.2 (confirmed via `nvidia-smi`) |
 
 ## Bootstrap log
@@ -24,6 +23,7 @@ Dedicated GPU workload node. See [ADR 0002](../decisions/0002-gpu-and-control-pl
 |---|---|---|
 | 2026-08-16 | Confirmed OS, NVIDIA driver, network identity | SSH not yet installed |
 | 2026-08-16 | Installed & enabled OpenSSH server, ufw allowing OpenSSH | `ssh.service` active + enabled, listening on :22 |
+| 2026-08-16 | Router DHCP reservation set (MAC → `192.168.0.79`) | IP is now static |
 
 ## Role in cluster
 
