@@ -24,6 +24,7 @@ Dedicated GPU workload node. See [ADR 0002](../decisions/0002-gpu-and-control-pl
 | 2026-08-16 | Confirmed OS, NVIDIA driver, network identity | SSH not yet installed |
 | 2026-08-16 | Installed & enabled OpenSSH server, ufw allowing OpenSSH | `ssh.service` active + enabled, listening on :22 |
 | 2026-08-16 | Router DHCP reservation set (MAC → `192.168.0.79`) | IP is now static |
+| 2026-08-16 | Key-based SSH from Dell G5 jump box confirmed; hardened via `harden-ssh.sh` | Password auth + root login disabled, key-only, no lockout |
 
 ## Role in cluster
 

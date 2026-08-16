@@ -27,6 +27,7 @@ App / Kubernetes control-plane node. See [ADR 0002](../decisions/0002-gpu-and-co
 | 2026-08-16 | Renamed hostname `homelab-01` → `control-plane-01` | Avoids confusion with the "G5" naming collision noted above |
 | 2026-08-16 | Installed & enabled OpenSSH server, ufw allowing OpenSSH | Confirmed reachable on :22 from PC 1 (banner: OpenSSH_10.2p1 Ubuntu-2ubuntu3.5) |
 | 2026-08-16 | Router DHCP reservation set (MAC → `192.168.0.106`) | IP is now static |
+| 2026-08-16 | Key-based SSH from Dell G5 jump box confirmed; hardened via inline `sshd_config.d` drop-in (same content as `harden-ssh.sh`) | Password auth + root login disabled, key-only, no lockout |
 
 ## Role in cluster
 

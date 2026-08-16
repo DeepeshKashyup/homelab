@@ -1,6 +1,6 @@
-# Dell G5 — GPU Node
+# Dell G5 — Admin / Jump Box
 
-Baseline compute node for the homelab platform.
+Original baseline compute node for the homelab platform. Runs **Windows**, not Linux — different from PC 1 / PC 2, which changes the tooling used on it (PowerShell + built-in Windows OpenSSH client, no `ssh-copy-id`, `icacls` instead of `chmod`).
 
 ## Specs
 
@@ -10,15 +10,17 @@ Baseline compute node for the homelab platform.
 | CPU | _TBD_ |
 | RAM | _TBD_ |
 | Storage | _TBD_ |
-| OS | Ubuntu Server (planned) |
+| OS | Windows (version TBD) |
+| SSH client | Built-in Windows OpenSSH (PowerShell) |
 | Hostname | _TBD_ |
-| Static IP | _TBD_ |
+| IP | _TBD — not reserved yet; jump box doesn't need a static IP to reach the cluster nodes, only the reverse would_ |
 
 ## Bootstrap log
 
 | Date | Change | Notes |
 |---|---|---|
-| | | |
+| 2026-08-16 | Generated `homelab_ed25519` keypair; copied to PC 1 and PC 2 | No passphrase set — convenience over the jump box's own LAN-local risk profile |
+| 2026-08-16 | Confirmed key-based login to both nodes, no password prompt | |
 
 ## Role
 
