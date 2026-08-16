@@ -21,6 +21,7 @@ Original baseline compute node for the homelab platform. Runs **Windows**, not L
 |---|---|---|
 | 2026-08-16 | Generated `homelab_ed25519` keypair; copied to PC 1 and PC 2 | No passphrase set — convenience over the jump box's own LAN-local risk profile |
 | 2026-08-16 | Confirmed key-based login to both nodes, no password prompt | |
+| 2026-08-16 | Added `~/.ssh/config` with `gpu-node-01` / `control-plane-01` host aliases | Hit "Bad permissions" from OpenSSH — `Set-Content` inherited broad ACLs from the parent folder. Fixed with `icacls "$env:USERPROFILE\.ssh\config" /inheritance:r` + `/grant:r "$env:USERNAME:F"`. Both aliases confirmed working after. |
 
 ## Role
 
