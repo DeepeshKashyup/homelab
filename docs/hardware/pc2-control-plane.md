@@ -14,7 +14,7 @@ App / Kubernetes control-plane node. See [ADR 0002](../decisions/0002-gpu-and-co
 | Storage | 1TB SSD |
 | Purchase price | _TBD — not recorded_ |
 | OS | Ubuntu (version TBD — confirm with `lsb_release -a`) |
-| Hostname | `homelab-01` — generic; consider renaming to something role-specific (e.g. `control-plane-01`) before it joins the cluster |
+| Hostname | `control-plane-01` (renamed from generic `homelab-01`) |
 | NIC | USB Wi-Fi adapter |
 | MAC | `00:1f:05:62:9a:a6` |
 | DHCP IP (pre-reservation) | `192.168.0.106` |
@@ -25,6 +25,7 @@ App / Kubernetes control-plane node. See [ADR 0002](../decisions/0002-gpu-and-co
 | Date | Change | Notes |
 |---|---|---|
 | 2026-08-16 | Confirmed network identity | SSH not yet installed; connecting over Wi-Fi (USB adapter) — consider wired for a control-plane node's reliability |
+| 2026-08-16 | Renamed hostname `homelab-01` → `control-plane-01` | Avoids confusion with the "G5" naming collision noted above |
 
 ## Role in cluster
 
