@@ -23,6 +23,7 @@ Dedicated GPU workload node. See [ADR 0002](../decisions/0002-gpu-and-control-pl
 | Date | Change | Notes |
 |---|---|---|
 | 2026-08-16 | Confirmed OS, NVIDIA driver, network identity | SSH not yet installed |
+| 2026-08-16 | Installed & enabled OpenSSH server, ufw allowing OpenSSH | `ssh.service` active + enabled, listening on :22 |
 
 ## Role in cluster
 

@@ -26,6 +26,7 @@ App / Kubernetes control-plane node. See [ADR 0002](../decisions/0002-gpu-and-co
 |---|---|---|
 | 2026-08-16 | Confirmed network identity | SSH not yet installed; connecting over Wi-Fi (USB adapter) — consider wired for a control-plane node's reliability |
 | 2026-08-16 | Renamed hostname `homelab-01` → `control-plane-01` | Avoids confusion with the "G5" naming collision noted above |
+| 2026-08-16 | Installed & enabled OpenSSH server, ufw allowing OpenSSH | Confirmed reachable on :22 from PC 1 (banner: OpenSSH_10.2p1 Ubuntu-2ubuntu3.5) |
 
 ## Role in cluster
 
