@@ -1,6 +1,6 @@
 # ADR 0001: GPU Expansion — Used Hardware Evaluation
 
-**Status:** Deferred (no purchase yet)
+**Status:** Superseded by [ADR 0002](0002-gpu-and-control-plane-node-purchase.md)
 **Date:** 2026-08-16
 
 ## Context
