@@ -13,11 +13,24 @@
 #   - kubeconfig is at /etc/rancher/k3s/k3s.yaml
 #   - the node token needed to join gpu-node-01 as a worker is printed at
 #     the end and saved at /var/lib/rancher/k3s/server/node-token
+#
+# Also opens the ufw ports a worker node needs to join and stay connected
+# (6443/8472/10250). install-ssh.sh only ever opened OpenSSH, so without
+# this a worker's k3s-agent silently hangs retrying "Failed to validate
+# connection to cluster ... context deadline exceeded" forever instead of
+# failing loudly — that's what happened joining gpu-node-01 the first time.
 
 set -euo pipefail
 
 echo "==> Installing k3s server (bundled flannel CNI, node IP auto-detected)"
 curl -sfL https://get.k3s.io | sh -
+
+echo
+echo "==> Opening firewall ports needed by worker nodes"
+ufw allow 6443/tcp    # k3s API server (workers register/authenticate here)
+ufw allow 8472/udp    # flannel VXLAN overlay (pod-to-pod traffic between nodes)
+ufw allow 10250/tcp   # kubelet API (control-plane <-> node metrics/exec)
+ufw status verbose
 
 echo
 echo "==> k3s service status"
