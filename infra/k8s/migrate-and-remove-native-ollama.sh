@@ -17,6 +17,15 @@
 #   sudo bash infra/k8s/migrate-and-remove-native-ollama.sh
 #
 # Safe to re-run: each step checks whether there's anything to do.
+#
+# Note: `kubectl` only has local API access on control-plane-01 (that's
+# where the k3s server + kubeconfig live) — gpu-node-01 is a worker with
+# no local API access, so `k3s kubectl` here defaults to a dead
+# localhost:8080 and fails. This script runs on gpu-node-01 (where the
+# native service actually is), so the Deployment-restart step is
+# best-effort: if it can't reach the API, it prints the command to run
+# from control-plane-01 instead and continues — it does NOT abort the
+# rest of the script (the removal steps don't need kubectl at all).
 
 set -euo pipefail
 
@@ -43,12 +52,19 @@ else
 
   echo
   echo "==> Restarting the Kubernetes ollama Deployment so it picks up the migrated models"
-  k3s kubectl rollout restart deployment/ollama -n ollama
-  k3s kubectl rollout status deployment/ollama -n ollama --timeout=120s
-
-  echo
-  echo "==> Models now visible to the Kubernetes-managed Ollama:"
-  k3s kubectl exec -n ollama deploy/ollama -- ollama list
+  if k3s kubectl get nodes >/dev/null 2>&1; then
+    k3s kubectl rollout restart deployment/ollama -n ollama
+    k3s kubectl rollout status deployment/ollama -n ollama --timeout=120s
+    echo
+    echo "==> Models now visible to the Kubernetes-managed Ollama:"
+    k3s kubectl exec -n ollama deploy/ollama -- ollama list
+  else
+    echo "    No local kubectl API access from this node (expected on a worker"
+    echo "    node — gpu-node-01 only has kubelet, not the API server)."
+    echo "    Run this from control-plane-01 to pick up the migrated models:"
+    echo "      sudo k3s kubectl rollout restart deployment/ollama -n ollama"
+    echo "      sudo k3s kubectl exec -n ollama deploy/ollama -- ollama list"
+  fi
 fi
 
 echo
