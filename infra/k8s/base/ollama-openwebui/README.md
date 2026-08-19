@@ -32,3 +32,9 @@ sudo k3s kubectl exec -n ollama deploy/ollama -- nvidia-smi
 ```
 
 Should show the RTX 5060 Ti; check GPU-Util climbs during an actual generation request.
+
+## Gotcha: "model does not support tools"
+
+Prompting a model that lacks tool/function-calling support (e.g. `gemma3:4b` — check a model's `capabilities` in `ollama list`/`/api/tags`; `["completion"]` means no tools) fails with `HTTP 400 ... does not support tools`, even with nothing obviously "tool"-related enabled in the chat. Cause: Open WebUI's per-model **Function Calling** setting defaults to (or gets set to) **Native**, which attaches a tools schema to every request for that model regardless of whether a tool is actually toggled on.
+
+Fix: Admin Panel → Settings → Models (or Workspace → Models, depending on version) → select the model → set **Function Calling** to **Default** instead of **Native**. Models that do support tools (e.g. `llama3.1:8b`, `qwen2.5:14b`) aren't affected either way.
