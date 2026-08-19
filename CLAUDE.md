@@ -18,6 +18,12 @@ This supersedes the earlier used-GPU-market evaluation (RTX 4070 Ti Super / used
 
 **SSH bootstrap is complete** for both cluster nodes: OpenSSH installed and enabled, static IPs set via router DHCP reservation (by MAC), key-based auth set up from the Dell G5 jump box (`~/.ssh/homelab_ed25519`, no passphrase — ed25519 keypair generated in PowerShell, copied via `Get-Content | ssh ... >> authorized_keys` since Windows has no `ssh-copy-id`), and both nodes hardened to key-only auth (password + root login disabled via an `sshd_config.d` drop-in) with no lockouts.
 
+## Operating rules
+
+- Use the short SSH aliases from the Dell G5 jump box: `ssh gpu-node-01` and `ssh control-plane-01`.
+- Do not run any installation or bootstrap commands on the cluster nodes without explicit user permission. This includes k3s installation, package installs, system updates, package repository changes, and any `curl ... | sh` style installer flows.
+- Before any installation task, confirm the exact command and intent with the user, and wait for approval before executing it.
+
 On the portfolio side, Deepesh has drafted resume bullet points for a project section titled "Self-Hosted Data & AI Infrastructure Platform." The repo is now live and public on GitHub: **https://github.com/DeepeshKashyup/homelab** — pushed from PC 1 via a dedicated SSH deploy key (`~/.ssh/github_ed25519` on PC 1, separate from the jump-box-to-node key), with `/infra`, `/agents`, and `/docs` directories (hardware inventory + ADRs under `docs/`, working SSH bootstrap scripts under `infra/bootstrap/`).
 
 ## On the horizon
