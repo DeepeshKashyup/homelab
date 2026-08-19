@@ -30,6 +30,14 @@
 # DNS lookup (e.g. an `ollama pull`) timed out even though the node itself
 # resolved fine via systemd-resolved. Pinning to known-reachable public
 # resolvers sidesteps whatever the network's DHCP happens to hand out.
+#
+# Note this alone isn't enough on an already-running cluster: CoreDNS's
+# ConfigMap always literally says `forward . /etc/resolv.conf` (that's the
+# CoreDNS *pod's own* local file, not a host path) — kubelet only
+# populates that file from the node's resolv-conf source when the pod is
+# first created. An already-running CoreDNS pod keeps its old DNS config
+# until it actually restarts, which is why this script force-restarts it
+# below rather than assuming the k3s service restart alone covers it.
 
 set -euo pipefail
 
@@ -62,6 +70,12 @@ echo
 echo "==> k3s service status"
 systemctl is-active k3s
 systemctl is-enabled k3s
+
+echo
+echo "==> Restarting CoreDNS so it picks up the resolv-conf change"
+echo "    (a k3s service restart alone does not restart this workload pod)"
+k3s kubectl rollout restart deployment/coredns -n kube-system
+k3s kubectl rollout status deployment/coredns -n kube-system --timeout=60s
 
 echo
 echo "==> Cluster node list"
