@@ -21,7 +21,9 @@
 # failing loudly — that's what happened joining gpu-node-01 the first time.
 #
 # Also pins CoreDNS's upstream resolver to 1.1.1.1/8.8.8.8 instead of
-# whatever the node's DHCP-provided DNS servers are. control-plane-01's
+# whatever the node's DHCP-provided DNS servers are (full explanation,
+# including how Kubernetes pod DNS actually works, in
+# docs/decisions/0010-coredns-upstream-dns-incident.md). control-plane-01's
 # Wi-Fi adapter got 4 DNS servers via DHCP (2 IPv4, 2 IPv6); k3s can only
 # carry 3 in CoreDNS's forward config (glibc resolv.conf limit — look for
 # "Nameserver limits exceeded" in `journalctl -u k3s` if this recurs), and
