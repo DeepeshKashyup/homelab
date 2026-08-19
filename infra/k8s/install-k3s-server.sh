@@ -19,11 +19,37 @@
 # this a worker's k3s-agent silently hangs retrying "Failed to validate
 # connection to cluster ... context deadline exceeded" forever instead of
 # failing loudly — that's what happened joining gpu-node-01 the first time.
+#
+# Also pins CoreDNS's upstream resolver to 1.1.1.1/8.8.8.8 instead of
+# whatever the node's DHCP-provided DNS servers are. control-plane-01's
+# Wi-Fi adapter got 4 DNS servers via DHCP (2 IPv4, 2 IPv6); k3s can only
+# carry 3 in CoreDNS's forward config (glibc resolv.conf limit — look for
+# "Nameserver limits exceeded" in `journalctl -u k3s` if this recurs), and
+# kept an IPv6 one with no real route on this network. CoreDNS's forward
+# plugin stalled on it before failing over, so every in-cluster external
+# DNS lookup (e.g. an `ollama pull`) timed out even though the node itself
+# resolved fine via systemd-resolved. Pinning to known-reachable public
+# resolvers sidesteps whatever the network's DHCP happens to hand out.
 
 set -euo pipefail
 
+echo "==> Pinning CoreDNS's upstream DNS to 1.1.1.1 / 8.8.8.8"
+mkdir -p /etc/rancher/k3s
+cat <<'EOF' > /etc/rancher/k3s/resolv.conf
+nameserver 1.1.1.1
+nameserver 8.8.8.8
+EOF
+if [ ! -f /etc/rancher/k3s/config.yaml ] || ! grep -q '^resolv-conf:' /etc/rancher/k3s/config.yaml; then
+  echo "resolv-conf: /etc/rancher/k3s/resolv.conf" >> /etc/rancher/k3s/config.yaml
+fi
+
+echo
 echo "==> Installing k3s server (bundled flannel CNI, node IP auto-detected)"
 curl -sfL https://get.k3s.io | sh -
+
+echo
+echo "==> Restarting k3s to pick up the resolv-conf setting (no-op on a fresh install)"
+systemctl restart k3s
 
 echo
 echo "==> Opening firewall ports needed by worker nodes"
