@@ -40,4 +40,4 @@ Fix: remove the broken template, let `k3s-agent` regenerate `config.toml` from i
 - [x] Configure containerd NVIDIA runtime on `gpu-node-01` (`infra/k8s/configure-nvidia-runtime.sh`)
 - [x] Label `gpu-node-01` and deploy the device plugin DaemonSet
 - [x] Validate `nvidia.com/gpu` shows as an allocatable resource on `gpu-node-01`
-- [ ] Run a test GPU pod to confirm end-to-end scheduling before installing Ollama
+- [x] Run a test GPU pod to confirm end-to-end scheduling before installing Ollama — `infra/k8s/smoke-tests/gpu-smoke-test.yaml`, `nvidia-smi` inside the pod correctly showed the RTX 5060 Ti, driver 595.84, CUDA 13.2
