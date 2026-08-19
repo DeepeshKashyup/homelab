@@ -58,4 +58,4 @@ Open the same set of cluster-networking ports on **every** node, not just the co
 - [x] Open `8472/udp`, `10250/tcp`, and the NodePort range on `gpu-node-01`
 - [x] Fold these rules into `join-k3s-agent.sh` for future nodes
 - [x] Generalize NodePort firewall rules to the full range on both scripts
-- [ ] Confirm Ollama is now reachable from `control-plane-01` (ClusterIP and NodePort) and from the Dell G5 browser via Open WebUI
+- [x] Confirm Ollama is now reachable from `control-plane-01` (ClusterIP and NodePort) and from the Dell G5 browser via Open WebUI — confirmed working, including a successful chat completion
