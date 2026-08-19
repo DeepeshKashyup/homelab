@@ -2,10 +2,23 @@
 
 ComfyUI (image generation, GPU-scheduled on `gpu-node-01`) in the `comfyui` namespace. Image: `ghcr.io/ai-dock/comfyui:latest-cuda`. See [ADR 0008](../../../../docs/decisions/0008-nvidia-device-plugin-default-runtime.md) for GPU scheduling and [ADR 0009](../../../../docs/decisions/0009-nodeport-then-traefik-ingress.md) for why this is exposed via `NodePort`.
 
+## ⚠️ Read before applying: this image auto-exposes services publicly by default
+
+`ai-dock/comfyui` is built for cloud GPU rental platforms and, unconfigured, auto-creates **public internet tunnels** (Cloudflare Quick Tunnels) for Jupyter, syncthing, SSH, and a service portal — with a default password of literally `"password"`. This actually happened on first deploy here; see [ADR 0012](../../../../docs/decisions/0012-comfyui-public-tunnel-security-incident.md) for the full incident. `01-comfyui.yaml` now disables all of it, but the **`WEB_PASSWORD`** it still uses (defense in depth) must be created as a `Secret` first — the manifest deliberately does not contain a literal password (this repo is public).
+
+```bash
+kubectl create secret generic comfyui-web-auth \
+  --from-literal=WEB_PASSWORD='<generate-a-strong-password-yourself>' \
+  -n comfyui
+```
+
+Generate the password yourself (e.g. a password manager, or `openssl rand -base64 24`) — don't reuse a password from anywhere else. Create the `comfyui` namespace first if it doesn't exist yet (`00-namespace.yaml`, below) since the Secret needs to go into it.
+
 ## Apply
 
 ```bash
 sudo k3s kubectl apply -f infra/k8s/base/comfyui/00-namespace.yaml
+# create the comfyui-web-auth Secret here, per above, before applying the Deployment
 sudo k3s kubectl apply -f infra/k8s/base/comfyui/01-comfyui.yaml
 ```
 
@@ -45,9 +58,10 @@ Gated models (SD3, FLUX, etc.) need an `HF_TOKEN` env var set on the Deployment 
 This is a first-pass deployment (image/volume layout taken from `ai-dock`'s documented example, not yet confirmed against actual pod behavior on this cluster). After scaling up, check:
 
 ```bash
-sudo k3s kubectl logs -n comfyui deploy/comfyui --tail=50
+sudo k3s kubectl logs -n comfyui deploy/comfyui --tail=80
 ```
 
+- **Security first**: confirm no `trycloudflare.com` tunnel URLs appear anywhere in the log — if they do, `CF_QUICK_TUNNELS=false` didn't take effect; scale to 0 immediately and investigate before doing anything else (see ADR 0012).
 - Does ComfyUI actually start and listen on 8188, or does the container expect different paths/env vars than configured in `01-comfyui.yaml`?
 - Does it detect the GPU (look for CUDA/device init messages, similar to what Ollama's logs showed)?
 - Do the model/output volume mounts match what the image actually reads/writes from — adjust `01-comfyui.yaml`'s `volumeMounts` if not.

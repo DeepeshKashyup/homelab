@@ -17,6 +17,25 @@
 #   exact commands. Revisit if concurrent GPU sharing becomes a real need
 #   (e.g. NVIDIA GPU time-slicing).
 # - Exposed via NodePort per ADR 0009 (interim, pre-Ingress).
+#
+# SECURITY: this image is built for cloud GPU rental platforms and, by
+# default, auto-creates PUBLIC internet tunnels (Cloudflare Quick
+# Tunnels) exposing Jupyter, syncthing, SSH, and a service portal — with
+# WEB_PASSWORD defaulting to the literal string "password". This was
+# discovered live (briefly publicly exposed before being caught and
+# scaled down) — see docs/decisions/0012 for the full incident writeup.
+# The env vars below disable every one of those extras; only ComfyUI's
+# own port (8188) is meant to be reachable, and only via our own
+# NodePort — never re-add a service without checking whether it reopens
+# a tunnel or a default credential.
+#
+# WEB_PASSWORD is deliberately NOT set here as a literal value — this
+# repo is public. It's read from a Secret you create yourself (never
+# committed to git):
+#   kubectl create secret generic comfyui-web-auth \
+#     --from-literal=WEB_PASSWORD='<a-strong-password-you-generate>' \
+#     -n comfyui
+# See docs/decisions/0012 and this directory's README for the full setup.
 
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -71,6 +90,23 @@ spec:
           env:
             - name: AUTO_UPDATE
               value: "false"
+            - name: CF_QUICK_TUNNELS
+              value: "false" # the critical one — no public internet tunnels
+            - name: SSH_PORT_HOST
+              value: "" # disable SSH inside the container; unneeded, we use kubectl exec
+            - name: SYNCTHING_UI_PORT_HOST
+              value: "" # disable; unneeded
+            - name: SYNCTHING_TRANSPORT_PORT_HOST
+              value: "" # disable; unneeded
+            - name: SERVICEPORTAL_PORT_HOST
+              value: "" # disable; unneeded, we go straight to ComfyUI's own NodePort
+            - name: WEB_ENABLE_AUTH
+              value: "true" # explicit even though it's the default — defense in depth
+            - name: WEB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: comfyui-web-auth
+                  key: WEB_PASSWORD
           resources:
             limits:
               nvidia.com/gpu: 1
