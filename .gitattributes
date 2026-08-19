@@ -1,0 +1,3 @@
+# Force LF line endings for scripts that run on the Linux cluster nodes,
+# regardless of core.autocrlf on the authoring machine (Windows jump box).
+*.sh text eol=lf
