@@ -1,0 +1,102 @@
+# ComfyUI: GPU-scheduled image (and later, video) generation on gpu-node-01.
+#
+# - Image: ghcr.io/ai-dock/comfyui:latest-cuda — actively maintained,
+#   CUDA-tagged build, works as a plain container (not locked to a
+#   RunPod/vast.ai cloud context). Volume paths and env vars below are
+#   per ai-dock's documented docker-compose example; VERIFY against the
+#   pod's actual logs/filesystem on first deploy and adjust if the image
+#   has since changed its layout — this is a first-pass deployment in the
+#   same "deploy, observe, iterate" spirit as the rest of this cluster's
+#   incident-driven fixes (see docs/decisions/0008, 0010, 0011).
+# - nodeSelector pins it to gpu-node-01, same as Ollama (ADR 0008).
+# - replicas: 0 by default. gpu-node-01 has one physical GPU and
+#   Kubernetes only advertises one allocatable nvidia.com/gpu unit, so
+#   Ollama and ComfyUI can't both hold a GPU reservation at the same time
+#   as always-on Deployments. Scale this up (and Ollama down) manually
+#   when testing image generation — see this directory's README for the
+#   exact commands. Revisit if concurrent GPU sharing becomes a real need
+#   (e.g. NVIDIA GPU time-slicing).
+# - Exposed via NodePort per ADR 0009 (interim, pre-Ingress).
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: comfyui-models
+  namespace: comfyui
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 40Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: comfyui-output
+  namespace: comfyui
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: comfyui
+  namespace: comfyui
+spec:
+  replicas: 0 # see note above — scale up manually, and scale ollama down first
+  strategy:
+    type: Recreate # local-path PVCs are ReadWriteOnce; avoid two pods fighting over them
+  selector:
+    matchLabels:
+      app: comfyui
+  template:
+    metadata:
+      labels:
+        app: comfyui
+    spec:
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+      containers:
+        - name: comfyui
+          image: ghcr.io/ai-dock/comfyui:latest-cuda
+          ports:
+            - containerPort: 8188
+          env:
+            - name: AUTO_UPDATE
+              value: "false"
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - name: models
+              mountPath: /root/.comfy/models
+            - name: output
+              mountPath: /root/outputs
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: comfyui-models
+        - name: output
+          persistentVolumeClaim:
+            claimName: comfyui-output
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: comfyui
+  namespace: comfyui
+spec:
+  type: NodePort
+  selector:
+    app: comfyui
+  ports:
+    - port: 8188
+      targetPort: 8188
+      nodePort: 30188
