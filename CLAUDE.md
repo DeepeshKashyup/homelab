@@ -18,7 +18,9 @@ This supersedes the earlier used-GPU-market evaluation (RTX 4070 Ti Super / used
 
 **SSH bootstrap is complete** for both cluster nodes: OpenSSH installed and enabled, static IPs set via router DHCP reservation (by MAC), key-based auth set up from the Dell G5 jump box (`~/.ssh/homelab_ed25519`, no passphrase — ed25519 keypair generated in PowerShell, copied via `Get-Content | ssh ... >> authorized_keys` since Windows has no `ssh-copy-id`), and both nodes hardened to key-only auth (password + root login disabled via an `sshd_config.d` drop-in) with no lockouts.
 
-**k3s cluster is up**: `control-plane-01` runs the k3s server (bundled flannel CNI per `docs/decisions/0007`), and `gpu-node-01` has joined as a worker — `kubectl get nodes` confirms both `Ready`. Bootstrap/install scripts live in `infra/bootstrap/` and `infra/k8s/`. Two gaps hit and fixed along the way, both now folded into the scripts so they don't recur: `control-plane-01` was missing `curl` (SSH bootstrap only ever installed SSH-specific packages — `infra/bootstrap/install-base-packages.sh` now covers general tooling), and `ufw` was blocking the k3s API/flannel/kubelet ports workers need (6443/tcp, 8472/udp, 10250/tcp — now opened by `infra/k8s/install-k3s-server.sh` itself).
+**k3s cluster is up**: `control-plane-01` runs the k3s server (bundled flannel CNI per `docs/decisions/0007`), and `gpu-node-01` has joined as a worker — `kubectl get nodes` confirms both `Ready`. Bootstrap/install scripts live in `infra/bootstrap/` and `infra/k8s/`. Three gaps hit and fixed along the way, all now folded into the scripts so they don't recur: `control-plane-01` was missing `curl` (SSH bootstrap only ever installed SSH-specific packages — `infra/bootstrap/install-base-packages.sh` now covers general tooling); `ufw` was blocking the k3s API/flannel/kubelet ports workers need (6443/tcp, 8472/udp, 10250/tcp — now opened by `infra/k8s/install-k3s-server.sh` itself); and configuring the NVIDIA containerd runtime on an unseeded config template broke CNI entirely (see `docs/decisions/0008` incident writeup — `infra/k8s/configure-nvidia-runtime.sh` now seeds from k3s's own generated config first).
+
+**GPU scheduling is live**: `nvidia.com/gpu` is an allocatable resource on `gpu-node-01` — device plugin deployed, node labeled, containerd using the NVIDIA runtime by default (see `docs/decisions/0008`). Not yet validated with an actual GPU workload/test pod.
 
 ## Operating rules
 
@@ -32,7 +34,7 @@ On the portfolio side, Deepesh has drafted resume bullet points for a project se
 
 - Installing the Kubernetes control plane on PC 2 and joining PC 1 as a GPU-scheduled worker — done
 - Migrating the CNI from bundled flannel to Cilium (see `docs/decisions/0007`), before real workloads are deployed
-- Validating GPU availability/scheduling in Kubernetes on `gpu-node-01` (NVIDIA device plugin)
+- Validating GPU availability/scheduling in Kubernetes on `gpu-node-01` (NVIDIA device plugin) — done; still want a test GPU pod to confirm end-to-end before Ollama
 - Installing Ollama on `gpu-node-01` and exposing model serving to control-plane apps
 - Deciding whether to taint `gpu-node-01` so it's reserved for GPU/inference workloads only — today nothing stops the scheduler from placing ordinary non-GPU pods there if `control-plane-01` runs low on resources, which would contend with Ollama for CPU/RAM even without touching the GPU. Deliberately deferred until real workloads make the risk concrete rather than hypothetical.
 - Deploying Open WebUI and n8n on `control-plane-01`
