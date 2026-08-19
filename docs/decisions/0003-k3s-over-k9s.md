@@ -58,7 +58,7 @@ Use `k9s` only as a convenience tool for cluster inspection/debugging after the 
 
 ## Follow-ups
 
-- [ ] Install `k3s` on `control-plane-01`
-- [ ] Join `gpu-node-01` as a worker
-- [ ] Validate cluster readiness with `kubectl get nodes`
+- [x] Install `k3s` on `control-plane-01`
+- [x] Join `gpu-node-01` as a worker
+- [x] Validate cluster readiness with `kubectl get nodes`
 - [ ] Add a short ops note on helpful tooling (`kubectl`, `k9s`, `helm`) and their roles

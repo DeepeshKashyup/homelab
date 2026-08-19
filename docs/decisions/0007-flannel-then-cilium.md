@@ -29,7 +29,7 @@ Install `k3s` with its bundled `flannel` CNI for the initial cluster bring-up. T
 
 ## Follow-ups
 
-- [ ] Validate `k3s` cluster health with `kubectl get nodes` on flannel
+- [x] Validate `k3s` cluster health with `kubectl get nodes` on flannel — `control-plane-01` (server) and `gpu-node-01` (worker) both `Ready`
 - [ ] Install Cilium and migrate the cluster off flannel
 - [ ] Validate pod-to-pod networking and any network policies post-migration
 - [ ] Update this ADR's Status to note migration completion, or file a follow-up ADR if the Cilium migration surfaces new decisions
