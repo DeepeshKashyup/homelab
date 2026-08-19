@@ -34,6 +34,7 @@ On the portfolio side, Deepesh has drafted resume bullet points for a project se
 - Migrating the CNI from bundled flannel to Cilium (see `docs/decisions/0007`), before real workloads are deployed
 - Validating GPU availability/scheduling in Kubernetes on `gpu-node-01` (NVIDIA device plugin)
 - Installing Ollama on `gpu-node-01` and exposing model serving to control-plane apps
+- Deciding whether to taint `gpu-node-01` so it's reserved for GPU/inference workloads only — today nothing stops the scheduler from placing ordinary non-GPU pods there if `control-plane-01` runs low on resources, which would contend with Ollama for CPU/RAM even without touching the GPU. Deliberately deferred until real workloads make the risk concrete rather than hypothetical.
 - Deploying Open WebUI and n8n on `control-plane-01`
 - Adding a `~/.ssh/config` block on the Dell G5 for short hostnames (`ssh gpu-node-01` / `ssh control-plane-01`) — done
 - Cloning the repo onto PC 2 and the Dell G5 (currently only pushed from PC 1) so changes don't have to be relayed manually
