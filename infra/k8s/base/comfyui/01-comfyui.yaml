@@ -1,13 +1,19 @@
 # ComfyUI: GPU-scheduled image (and later, video) generation on gpu-node-01.
 #
-# - Image: ghcr.io/ai-dock/comfyui:latest-cuda — actively maintained,
-#   CUDA-tagged build, works as a plain container (not locked to a
-#   RunPod/vast.ai cloud context). Volume paths and env vars below are
-#   per ai-dock's documented docker-compose example; VERIFY against the
-#   pod's actual logs/filesystem on first deploy and adjust if the image
-#   has since changed its layout — this is a first-pass deployment in the
-#   same "deploy, observe, iterate" spirit as the rest of this cluster's
-#   incident-driven fixes (see docs/decisions/0008, 0010, 0011).
+# - Image: yanwk/comfyui-boot:cu130-slim-v2 — plain ComfyUI + ComfyUI-Manager,
+#   no bundled Jupyter/syncthing/SSH/tunnel machinery. Switched to this from
+#   ghcr.io/ai-dock/comfyui after that image caused THREE separate problems:
+#   (1) auto-exposed public Cloudflare tunnels with a weak default password
+#   (docs/decisions/0012, the actual security incident); (2) its Docker/
+#   RunPod-specific port-advertisement automation didn't understand
+#   Kubernetes' own auto-injected Service env vars, so ComfyUI never bound
+#   anywhere reachable; (3) its bundled PyTorch (2.4.1+cu121) doesn't
+#   support the RTX 5060 Ti's Blackwell (sm_120) architecture at all. This
+#   image's cu130 tag explicitly supports Blackwell and has none of ai-dock's
+#   vendor-specific automation to fight. See docs/decisions/0012 for the
+#   full incident writeup (kept for the general lesson, even though the
+#   specific WEB_PASSWORD/Secret machinery described there doesn't apply to
+#   this image — it has no such auth layer to configure).
 # - nodeSelector pins it to gpu-node-01, same as Ollama (ADR 0008).
 # - replicas: 0 by default. gpu-node-01 has one physical GPU and
 #   Kubernetes only advertises one allocatable nvidia.com/gpu unit, so
@@ -16,26 +22,9 @@
 #   when testing image generation — see this directory's README for the
 #   exact commands. Revisit if concurrent GPU sharing becomes a real need
 #   (e.g. NVIDIA GPU time-slicing).
-# - Exposed via NodePort per ADR 0009 (interim, pre-Ingress).
-#
-# SECURITY: this image is built for cloud GPU rental platforms and, by
-# default, auto-creates PUBLIC internet tunnels (Cloudflare Quick
-# Tunnels) exposing Jupyter, syncthing, SSH, and a service portal — with
-# WEB_PASSWORD defaulting to the literal string "password". This was
-# discovered live (briefly publicly exposed before being caught and
-# scaled down) — see docs/decisions/0012 for the full incident writeup.
-# The env vars below disable every one of those extras; only ComfyUI's
-# own port (8188) is meant to be reachable, and only via our own
-# NodePort — never re-add a service without checking whether it reopens
-# a tunnel or a default credential.
-#
-# WEB_PASSWORD is deliberately NOT set here as a literal value — this
-# repo is public. It's read from a Secret you create yourself (never
-# committed to git):
-#   kubectl create secret generic comfyui-web-auth \
-#     --from-literal=WEB_PASSWORD='<a-strong-password-you-generate>' \
-#     -n comfyui
-# See docs/decisions/0012 and this directory's README for the full setup.
+# - Exposed via NodePort per ADR 0009 (interim, pre-Ingress). Requires the
+#   NodePort range open in ufw on whichever node(s) serve it — see
+#   infra/k8s/open-nodeport-firewall.sh.
 
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -84,37 +73,20 @@ spec:
         nvidia.com/gpu.present: "true"
       containers:
         - name: comfyui
-          image: ghcr.io/ai-dock/comfyui:latest-cuda
+          image: docker.io/yanwk/comfyui-boot:cu130-slim-v2
           ports:
             - containerPort: 8188
           env:
-            - name: AUTO_UPDATE
-              value: "false"
-            - name: CF_QUICK_TUNNELS
-              value: "false" # the critical one — no public internet tunnels
-            - name: SSH_PORT_HOST
-              value: "" # disable SSH inside the container; unneeded, we use kubectl exec
-            - name: SYNCTHING_UI_PORT_HOST
-              value: "" # disable; unneeded
-            - name: SYNCTHING_TRANSPORT_PORT_HOST
-              value: "" # disable; unneeded
-            - name: SERVICEPORTAL_PORT_HOST
-              value: "" # disable; unneeded, we go straight to ComfyUI's own NodePort
-            - name: WEB_ENABLE_AUTH
-              value: "true" # explicit even though it's the default — defense in depth
-            - name: WEB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: comfyui-web-auth
-                  key: WEB_PASSWORD
+            - name: CLI_ARGS
+              value: ""
           resources:
             limits:
               nvidia.com/gpu: 1
           volumeMounts:
             - name: models
-              mountPath: /root/.comfy/models
+              mountPath: /root/ComfyUI/models
             - name: output
-              mountPath: /root/outputs
+              mountPath: /root/ComfyUI/output
       volumes:
         - name: models
           persistentVolumeClaim:

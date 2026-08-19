@@ -61,5 +61,9 @@ Worth knowing: a Kubernetes `Secret` is base64-encoded, not encrypted — anyone
 - [x] Scale `comfyui` to 0 immediately upon discovery
 - [x] Disable `CF_QUICK_TUNNELS` and all other unneeded auto-exposed services
 - [x] Move `WEB_PASSWORD` to a `Secret`, generated fresh (not the image's default)
-- [ ] Redeploy with the fixed manifest and confirm no tunnel URLs appear in the logs on next startup
+- [x] Redeploy with the fixed manifest and confirm no tunnel URLs appear in the logs on next startup — confirmed clean (no `cloudflared`/tunnel process at all)
 - [ ] Decide whether to rotate any other credentials on `gpu-node-01`/`control-plane-01` out of an abundance of caution, given the exposure window (however brief)
+
+## Postscript: switched images entirely
+
+Even with the tunnel/password issue fixed, `ai-dock/comfyui` turned out to have two more problems unrelated to security: its Docker/RunPod-specific port-advertisement automation doesn't understand Kubernetes' own auto-injected Service env vars (ComfyUI never bound anywhere externally reachable), and its bundled PyTorch (2.4.1+cu121) doesn't support the RTX 5060 Ti's Blackwell architecture at all. Rather than keep patching around a vendor image built for a different deployment model, the project switched to `yanwk/comfyui-boot:cu130-slim-v2` — plain ComfyUI, no bundled extras, explicit Blackwell support. See `infra/k8s/base/comfyui/README.md` for the current setup. This ADR's security lesson (scrutinize "convenience" images bundling extra services; keep secrets out of a public repo) stands regardless of which image is in use.
