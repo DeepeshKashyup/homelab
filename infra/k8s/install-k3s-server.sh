@@ -63,9 +63,10 @@ systemctl restart k3s
 
 echo
 echo "==> Opening firewall ports needed by worker nodes"
-ufw allow 6443/tcp    # k3s API server (workers register/authenticate here)
-ufw allow 8472/udp    # flannel VXLAN overlay (pod-to-pod traffic between nodes)
-ufw allow 10250/tcp   # kubelet API (control-plane <-> node metrics/exec)
+ufw allow 6443/tcp        # k3s API server (workers register/authenticate here)
+ufw allow 8472/udp        # flannel VXLAN overlay (pod-to-pod traffic between nodes)
+ufw allow 10250/tcp       # kubelet API (control-plane <-> node metrics/exec)
+ufw allow 30000:32767/tcp # NodePort range (any Service exposed via NodePort)
 ufw status verbose
 
 echo
