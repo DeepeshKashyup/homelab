@@ -1,0 +1,33 @@
+# infra/k8s/smoke-tests/gpu-smoke-test.yaml
+#
+# One-shot pod that runs `nvidia-smi` inside a container to confirm
+# end-to-end GPU scheduling: nodeSelector places it on gpu-node-01, the
+# resource request forces it through the device plugin
+# (docs/decisions/0008), and the NVIDIA container runtime (also from that
+# ADR) gives the container access to the GPU device.
+#
+# Apply:
+#   kubectl apply -f infra/k8s/smoke-tests/gpu-smoke-test.yaml
+#   kubectl wait --for=condition=Ready=false pod/gpu-smoke-test --timeout=60s 2>/dev/null; \
+#     kubectl logs gpu-smoke-test
+#
+# Clean up after checking the logs (Never restartPolicy means it won't
+# rerun, but it'll sit around as a Completed pod otherwise):
+#   kubectl delete -f infra/k8s/smoke-tests/gpu-smoke-test.yaml
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gpu-smoke-test
+  namespace: default
+spec:
+  restartPolicy: Never
+  nodeSelector:
+    nvidia.com/gpu.present: "true"
+  containers:
+  - name: nvidia-smi
+    image: nvidia/cuda:12.6.0-base-ubuntu24.04
+    command: ["nvidia-smi"]
+    resources:
+      limits:
+        nvidia.com/gpu: 1
