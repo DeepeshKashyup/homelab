@@ -35,9 +35,11 @@ On the portfolio side, Deepesh has drafted resume bullet points for a project se
 - Installing the Kubernetes control plane on PC 2 and joining PC 1 as a GPU-scheduled worker — done
 - Migrating the CNI from bundled flannel to Cilium (see `docs/decisions/0007`), before real workloads are deployed
 - Validating GPU availability/scheduling in Kubernetes on `gpu-node-01` (NVIDIA device plugin) — done, including an end-to-end `nvidia-smi` smoke test
-- Installing Ollama on `gpu-node-01` and exposing model serving to control-plane apps
-- Deciding whether to taint `gpu-node-01` so it's reserved for GPU/inference workloads only — today nothing stops the scheduler from placing ordinary non-GPU pods there if `control-plane-01` runs low on resources, which would contend with Ollama for CPU/RAM even without touching the GPU. Deliberately deferred until real workloads make the risk concrete rather than hypothetical.
-- Deploying Open WebUI and n8n on `control-plane-01`
+- Installing Ollama on `gpu-node-01` and Open WebUI on `control-plane-01`, exposed via NodePort for now (see `docs/decisions/0009`) — in progress
+- Deciding whether to taint `gpu-node-01` so it's reserved for GPU/inference workloads only — today nothing stops the scheduler from placing ordinary non-GPU pods there if `control-plane-01` runs low on resources, which would contend with Ollama for CPU/RAM even without touching the GPU. Deliberately deferred until real workloads make the risk concrete rather than hypothetical. (Open WebUI is explicitly pinned to `control-plane-01` via `nodeSelector` as a first, narrow step in this direction.)
+- Standing up local DNS and migrating from NodePort to Traefik Ingress (see `docs/decisions/0009`) once more than 1–2 apps need LAN exposure
+- Deploying n8n on `control-plane-01`
+- Exposing local model access outside the home network via a Telegram bot — the bot would poll/connect outbound to Telegram's API from inside the cluster and call Ollama's internal Service directly, so no inbound port-forwarding, dynamic DNS, or public TLS cert is needed on the home network. Lets Deepesh query local models from a phone. Not started; a natural extension once Ollama + Open WebUI are stable.
 - Adding a `~/.ssh/config` block on the Dell G5 for short hostnames (`ssh gpu-node-01` / `ssh control-plane-01`) — done
 - Cloning the repo onto PC 2 and the Dell G5 (currently only pushed from PC 1) so changes don't have to be relayed manually
 - Considering wired Ethernet for PC 2 (currently Wi-Fi via USB adapter) given its control-plane role

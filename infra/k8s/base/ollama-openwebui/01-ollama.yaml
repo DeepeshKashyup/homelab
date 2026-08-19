@@ -1,0 +1,73 @@
+# Ollama: GPU-scheduled model server on gpu-node-01.
+#
+# - nodeSelector pins it to gpu-node-01 (labeled nvidia.com/gpu.present=true
+#   by infra/k8s/configure-nvidia-runtime.sh — see ADR 0008).
+# - resources.limits requests the GPU device via the NVIDIA device plugin.
+# - No CPU/memory requests or limits set yet — deliberately deferred, see
+#   CLAUDE.md follow-ups on resource tuning; models can need significant
+#   RAM to load and an early hard limit risks OOM-killing mid-load.
+# - Models persist via a local-path PVC (k3s's default StorageClass) on
+#   gpu-node-01's disk, so a pod restart doesn't mean re-pulling models.
+# - Exposed via NodePort per ADR 0009 (interim, pre-Ingress).
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-models
+  namespace: ollama
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 50Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: ollama
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # local-path PVC is ReadWriteOnce; avoid two pods fighting over it
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+      containers:
+        - name: ollama
+          image: ollama/ollama:latest
+          ports:
+            - containerPort: 11434
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - name: models
+              mountPath: /root/.ollama
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: ollama-models
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: ollama
+spec:
+  type: NodePort
+  selector:
+    app: ollama
+  ports:
+    - port: 11434
+      targetPort: 11434
+      nodePort: 31434
