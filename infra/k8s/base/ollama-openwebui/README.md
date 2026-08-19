@@ -21,7 +21,9 @@ NodePort Services are reachable via **any** node's IP regardless of which node t
 
 No models are pre-pulled. Either:
 - In Open WebUI: use the model pull UI (Settings → Models), or
-- Directly: `sudo k3s kubectl exec -n ollama deploy/ollama -- ollama pull <model>` (e.g. `llama3.2`)
+- Directly: `sudo k3s kubectl exec -n ollama deploy/ollama -- ollama pull <model>` (e.g. `gemma3:4b`)
+
+`gemma3:4b` (3.3GB) is a good first pull — fast, comfortably fits the RTX 5060 Ti's 16GB VRAM. `gemma3:12b` (8.1GB) also fits with room to spare if more capability is needed.
 
 ## Verify GPU is actually being used
 

@@ -5,6 +5,7 @@ Cluster install scripts and Kubernetes manifests.
 - **`install-k3s-server.sh`** — installs k3s as the control-plane server (bundled flannel CNI; see [ADR 0007](../../docs/decisions/0007-flannel-then-cilium.md)). Run on `control-plane-01`.
 - **`join-k3s-agent.sh`** — joins a node to the cluster as a worker. Run on `gpu-node-01` after the server script has completed and reports `Ready`.
 - **`configure-nvidia-runtime.sh`** — wires `nvidia-container-toolkit` into k3s's containerd as the default runtime and labels the node for GPU scheduling (see [ADR 0008](../../docs/decisions/0008-nvidia-device-plugin-default-runtime.md)). Run on `gpu-node-01`.
+- **`open-nodeport-firewall.sh`** — opens the NodePort range used by `ollama-openwebui` in `ufw` (see [ADR 0009](../../docs/decisions/0009-nodeport-then-traefik-ingress.md)). Run on **both** nodes.
 - **`base/`** — core components shared across the cluster.
   - `nvidia-device-plugin.yaml` — NVIDIA device plugin DaemonSet, vendored from upstream, scoped to `gpu-node-01` via `nodeSelector`.
   - `ollama-openwebui/` — Ollama (GPU-scheduled) + Open WebUI, exposed via NodePort (see [ADR 0009](../../docs/decisions/0009-nodeport-then-traefik-ingress.md)). See its own README for apply/access instructions.
