@@ -56,7 +56,8 @@ graph TB
 
 ## Follow-ups
 
-- [ ] Deploy Ollama + Open WebUI behind NodePort (this ADR's immediate scope)
+- [x] Deploy Ollama + Open WebUI behind NodePort (this ADR's immediate scope) — confirmed working from the Dell G5 browser at `http://192.168.0.106:30080`
+- [ ] Explicitly `ufw allow` the NodePort range (30080/tcp, 31434/tcp) on both nodes for correctness. Access currently works without this — NodePort traffic gets DNAT'd by kube-proxy in a way that appears to bypass `ufw`'s filter rules in this setup — but that's incidental behavior, not a guarantee, and shouldn't be relied on.
 - [ ] Decide on a local DNS approach (dnsmasq / Pi-hole / CoreDNS forward zone) — future ADR
 - [ ] Migrate Ollama + Open WebUI (and future apps) to Traefik Ingress with hostnames once local DNS exists
 - [ ] Decide whether NodePort Services are kept alongside Ingress or retired at that point

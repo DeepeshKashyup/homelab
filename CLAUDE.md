@@ -22,6 +22,8 @@ This supersedes the earlier used-GPU-market evaluation (RTX 4070 Ti Super / used
 
 **GPU scheduling is validated end to end**: `nvidia.com/gpu` is allocatable on `gpu-node-01`, and a smoke-test pod (`infra/k8s/smoke-tests/gpu-smoke-test.yaml`) ran `nvidia-smi` inside a container via the scheduler + device plugin + NVIDIA container runtime, correctly showing the RTX 5060 Ti (driver 595.84, CUDA 13.2). See `docs/decisions/0008`.
 
+**Ollama + Open WebUI are deployed and working**: Ollama running GPU-scheduled on `gpu-node-01`, Open WebUI on `control-plane-01`, both in the `ollama` namespace (`infra/k8s/base/ollama-openwebui/`). Confirmed reachable from the Dell G5 browser at `http://192.168.0.106:30080` (NodePort, per `docs/decisions/0009`). No model pulled yet. Note: the NodePort range (30080/31434) isn't explicitly allowed in `ufw` on either node yet — access currently works anyway (NodePort traffic appears to bypass `ufw`'s filter chain via kube-proxy's DNAT), but that's incidental, not a guarantee; explicit `ufw allow` rules are still a follow-up.
+
 ## Operating rules
 
 - Use the short SSH aliases from the Dell G5 jump box: `ssh gpu-node-01` and `ssh control-plane-01`.
@@ -35,7 +37,7 @@ On the portfolio side, Deepesh has drafted resume bullet points for a project se
 - Installing the Kubernetes control plane on PC 2 and joining PC 1 as a GPU-scheduled worker — done
 - Migrating the CNI from bundled flannel to Cilium (see `docs/decisions/0007`), before real workloads are deployed
 - Validating GPU availability/scheduling in Kubernetes on `gpu-node-01` (NVIDIA device plugin) — done, including an end-to-end `nvidia-smi` smoke test
-- Installing Ollama on `gpu-node-01` and Open WebUI on `control-plane-01`, exposed via NodePort for now (see `docs/decisions/0009`) — in progress
+- Installing Ollama on `gpu-node-01` and Open WebUI on `control-plane-01`, exposed via NodePort for now (see `docs/decisions/0009`) — done; still need to pull an actual model and explicitly open the NodePort range in `ufw`
 - Deciding whether to taint `gpu-node-01` so it's reserved for GPU/inference workloads only — today nothing stops the scheduler from placing ordinary non-GPU pods there if `control-plane-01` runs low on resources, which would contend with Ollama for CPU/RAM even without touching the GPU. Deliberately deferred until real workloads make the risk concrete rather than hypothetical. (Open WebUI is explicitly pinned to `control-plane-01` via `nodeSelector` as a first, narrow step in this direction.)
 - Standing up local DNS and migrating from NodePort to Traefik Ingress (see `docs/decisions/0009`) once more than 1–2 apps need LAN exposure
 - Deploying n8n on `control-plane-01`
