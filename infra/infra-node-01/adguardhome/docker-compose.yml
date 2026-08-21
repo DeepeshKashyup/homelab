@@ -11,10 +11,11 @@
 #   cd infra/infra-node-01/adguardhome
 #   docker compose up -d
 #
-# First-run setup wizard: http://<node-ip>:3000 — walk through it, and
-# when asked to choose the permanent admin web interface port, keep 3000
-# (avoids colliding with anything else this node might run on 80/443
-# later). DNS itself is always on 53.
+# First-run setup wizard: http://<node-ip>:3000 — after setup completes,
+# AdGuard Home switches the admin UI to whatever port you picked in the
+# wizard (this deployment ended up on 80, not 3000 as originally
+# intended — both are published below so it works either way). DNS
+# itself is always on 53.
 
 services:
   adguardhome:
@@ -25,6 +26,7 @@ services:
       - "53:53/tcp"
       - "53:53/udp"
       - "3000:3000/tcp"
+      - "80:80/tcp"
     volumes:
       - ./work:/opt/adguardhome/work
       - ./conf:/opt/adguardhome/conf
