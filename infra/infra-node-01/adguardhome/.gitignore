@@ -1,0 +1,3 @@
+# Runtime data/config — not tracked, same reasoning as PVC data for k8s workloads
+work/
+conf/
