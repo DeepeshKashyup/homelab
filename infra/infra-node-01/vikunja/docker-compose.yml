@@ -21,6 +21,13 @@
 # Web UI: http://192.168.0.82:3456 (or http://kanban.homelab.local:3456
 # once the AdGuard Home DNS rewrite is added — see this directory's
 # README).
+#
+# IMPORTANT: don't mount a host volume straight onto /app/vikunja. The
+# image's own `vikunja` binary lives at /app/vikunja/vikunja — a bind
+# mount at that exact path shadows the whole directory (including the
+# binary) with the host dir's contents, so the container fails with
+# "exec: /app/vikunja/vikunja: no such file or directory". Mount only
+# the specific subpaths that actually need to persist instead.
 
 services:
   vikunja:
@@ -33,6 +40,7 @@ services:
       VIKUNJA_SERVICE_PUBLICURL: "http://kanban.homelab.local:3456/"
       VIKUNJA_SERVICE_JWTSECRET: "${VIKUNJA_JWT_SECRET}"
       VIKUNJA_DATABASE_TYPE: sqlite
-      VIKUNJA_DATABASE_PATH: /app/vikunja/vikunja.db
+      VIKUNJA_DATABASE_PATH: /db/vikunja.db
     volumes:
-      - ./data:/app/vikunja
+      - ./data/files:/app/vikunja/files
+      - ./data/db:/db
