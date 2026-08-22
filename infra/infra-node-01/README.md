@@ -38,5 +38,10 @@ Second service on this node — a lightweight backlog tracker for homelab work (
    ```bash
    docker compose up -d
    ```
-4. Complete the first-run signup at `http://192.168.0.82:3456` (first account created becomes admin — no separate claim/invite flow).
-5. Add the DNS rewrite in AdGuard Home (**Filters → DNS rewrites**): `kanban.homelab.local → 192.168.0.82` — this is the first real use of the DNS rewrite pattern described above. Afterward, use `http://kanban.homelab.local:3456`.
+5. Complete the first-run signup at `http://192.168.0.82:3456` (first account created becomes admin — no separate claim/invite flow). Use the **IP**, not a hostname, for this — see the gotcha below.
+6. Optional, later: switch to a friendly hostname. This needs two things done together, not just the DNS rewrite alone:
+   - Add the DNS rewrite in AdGuard Home (**Filters → DNS rewrites**): `kanban.homelab.local → 192.168.0.82`.
+   - Make sure the client you're using actually queries AdGuard Home for DNS (either the router's DHCP-advertised DNS server points at `192.168.0.82` — see the AdGuard Home section above — or the specific device is configured to use it directly). Verify with `nslookup kanban.homelab.local` from that client before relying on it.
+   - Only then update `VIKUNJA_SERVICE_PUBLICURL` in `docker-compose.yml` to the hostname and `docker compose up -d` again.
+
+   **Gotcha hit during initial setup**: `VIKUNJA_SERVICE_PUBLICURL` isn't just cosmetic — the frontend uses it as the base URL for its own API calls (registration, login, everything). Setting it to `kanban.homelab.local` *before* the DNS rewrite + client DNS pointing above were actually in place caused a generic "network error" on account creation, because the browser couldn't resolve that hostname at all yet. Keep this set to the working IP until the hostname is verified resolving from wherever you're accessing it.
