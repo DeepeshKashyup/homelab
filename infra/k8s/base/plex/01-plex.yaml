@@ -1,0 +1,105 @@
+# Plex Media Server: movie library, running on control-plane-01.
+#
+# - nodeSelector pins it to control-plane-01, not gpu-node-01 — deliberate,
+#   same reasoning as Open WebUI (see that manifest's comment and CLAUDE.md's
+#   deferred-taint note). control-plane-01 also has by far the most free
+#   disk (~800GB vs ~200GB on gpu-node-01, which is already 51% used by
+#   Ollama/ComfyUI models), and this keeps Plex off gpu-node-01's single
+#   GPU, which is already manually toggled between Ollama and ComfyUI.
+# - No hardware transcoding configured: control-plane-01 has no dedicated
+#   GPU. Direct Play (no transcoding) covers most same-LAN clients; revisit
+#   with Quick Sync (/dev/dri passthrough, i5-9500's iGPU) or moving to
+#   gpu-node-01 if transcoding load turns out to matter in practice.
+# - /transcode is an emptyDir (ephemeral scratch space), not a PVC —
+#   transcode output doesn't need to survive a pod restart.
+# - No PLEX_CLAIM env var: complete first-run setup manually via the
+#   browser at http://<control-plane-01-ip>:32400/web instead (see this
+#   directory's README) — avoids handling a time-sensitive (~4 min) claim
+#   token in a checked-in manifest.
+# - Exposed via NodePort per ADR 0009 (interim, pre-Ingress), reusing
+#   Plex's own default port 32400, which already falls inside the
+#   NodePort range opened by infra/k8s/open-nodeport-firewall.sh.
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: plex-config
+  namespace: plex
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: plex-media
+  namespace: plex
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 700Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: plex
+  namespace: plex
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # local-path PVCs are ReadWriteOnce; avoid two pods fighting over them
+  selector:
+    matchLabels:
+      app: plex
+  template:
+    metadata:
+      labels:
+        app: plex
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: control-plane-01
+      containers:
+        - name: plex
+          image: plexinc/pms-docker:latest
+          ports:
+            - containerPort: 32400
+          env:
+            - name: TZ
+              value: "Etc/UTC" # adjust to your local timezone, e.g. America/Chicago
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: movies
+              mountPath: /movies
+            - name: transcode
+              mountPath: /transcode
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: plex-config
+        - name: movies
+          persistentVolumeClaim:
+            claimName: plex-media
+        - name: transcode
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: plex
+  namespace: plex
+spec:
+  type: NodePort
+  selector:
+    app: plex
+  ports:
+    - port: 32400
+      targetPort: 32400
+      nodePort: 32400
