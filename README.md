@@ -4,7 +4,7 @@ A self-hosted, Kubernetes-based data and ML engineering homelab. It runs local A
 
 ## Structure
 
-- **[`infra/`](infra/)** — cluster and node infrastructure: bootstrap scripts, Kubernetes manifests (Cilium CNI, CloudNativePG, GPU scheduling), and ML serving deployments (Ollama, Open-WebUI).
+- **[`infra/`](infra/)** — cluster and node infrastructure: bootstrap scripts, Kubernetes manifests (Cilium CNI, CloudNativePG, GPU scheduling), ML serving deployments (Ollama, Open-WebUI, ComfyUI), and media serving (Plex).
 - **[`agents/`](agents/)** — agentic AI work built on LangChain / LangGraph, including NLP-to-SQL agents.
 - **[`docs/`](docs/)** — architecture notes, hardware evaluations, and decision records (ADRs).
 
@@ -14,8 +14,8 @@ Start small, scale incrementally. Hardware and infrastructure are added to match
 
 ## Current phase
 
-Bootstrapping compute nodes (Dell G5, GTX 1060) with stable SSH access and base OS configuration ahead of Kubernetes cluster install.
+A k3s cluster is up and running across two dedicated nodes (`control-plane-01`, `gpu-node-01`), with GPU scheduling validated end to end. Ollama + Open WebUI and ComfyUI are both deployed and working; Plex Media Server deployment is in progress. A third, dedicated node (`infra-node-01`) runs always-on infrastructure services (local DNS via AdGuard Home) outside the cluster. See `CLAUDE.md` and [`docs/decisions/`](docs/decisions/) for the full incremental build-out and the real issues hit (and fixed) along the way.
 
 ## Status
 
-🚧 Actively under construction.
+🚧 Actively under construction — core ML serving is working; media serving is in progress; Cilium CNI, CloudNativePG, and the agentic AI work are still ahead.
