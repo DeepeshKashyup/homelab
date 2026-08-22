@@ -45,17 +45,18 @@ services:
       - "3456:3456"
     environment:
       # IMPORTANT: this must be a hostname/IP that actually resolves for
-      # whatever client is using the UI right now — the frontend uses
-      # this as the base URL for its own API calls (registration
-      # included), not just for links. Using kanban.homelab.local here
-      # before the AdGuard Home DNS rewrite is added *and* clients are
-      # actually pointed at AdGuard Home as their DNS server causes a
-      # generic "network error" on every API call (registration, login,
-      # everything) — the hostname just doesn't resolve yet. Switch this
-      # back to the hostname once that's set up and verified (`nslookup
-      # kanban.homelab.local` resolving from the client you're testing
-      # from), then `docker compose up -d` again to pick it up.
-      VIKUNJA_SERVICE_PUBLICURL: "http://192.168.0.82:3456/"
+      # whatever client is using the UI — the frontend uses this as the
+      # base URL for its own API calls (registration, login, everything),
+      # not just for links. Confirmed working via the AdGuard Home DNS
+      # rewrite (kanban.homelab.local -> 192.168.0.82) as of 2026-08-22 —
+      # but this only resolves for clients that actually query AdGuard
+      # Home for DNS (either pointed at it directly, like the Dell G5 is,
+      # or once the router is in bridge mode and DHCP-wide DNS is set —
+      # see docs/decisions/0014 and the AdGuard Home section above). A
+      # client without that will get a "network error" on every API call
+      # again — fall back to http://192.168.0.82:3456/ for such a client
+      # rather than assuming the hostname just works everywhere.
+      VIKUNJA_SERVICE_PUBLICURL: "http://kanban.homelab.local:3456/"
       VIKUNJA_SERVICE_SECRET: "${VIKUNJA_JWT_SECRET}"
       VIKUNJA_DATABASE_TYPE: sqlite
       VIKUNJA_DATABASE_PATH: /db/vikunja.db

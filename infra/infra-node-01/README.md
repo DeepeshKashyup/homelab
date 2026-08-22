@@ -39,9 +39,15 @@ Second service on this node — a lightweight backlog tracker for homelab work (
    docker compose up -d
    ```
 5. Complete the first-run signup at `http://192.168.0.82:3456` (first account created becomes admin — no separate claim/invite flow). Use the **IP**, not a hostname, for this — see the gotcha below.
-6. Optional, later: switch to a friendly hostname. This needs two things done together, not just the DNS rewrite alone:
-   - Add the DNS rewrite in AdGuard Home (**Filters → DNS rewrites**): `kanban.homelab.local → 192.168.0.82`.
-   - Make sure the client you're using actually queries AdGuard Home for DNS (either the router's DHCP-advertised DNS server points at `192.168.0.82` — see the AdGuard Home section above — or the specific device is configured to use it directly). Verify with `nslookup kanban.homelab.local` from that client before relying on it.
-   - Only then update `VIKUNJA_SERVICE_PUBLICURL` in `docker-compose.yml` to the hostname and `docker compose up -d` again.
+6. **Done** (2026-08-22): DNS rewrite added (`kanban.homelab.local → 192.168.0.82`) and `VIKUNJA_SERVICE_PUBLICURL` switched to the hostname. Use `http://kanban.homelab.local:3456` — but only from a client that actually queries AdGuard Home for DNS. The router isn't in bridge mode yet, so this isn't DHCP-wide: each client needs its own DNS pointed at `192.168.0.82` until then (see the "DNS without router changes" note below). A client without that gets the same "network error" the initial setup hit — fall back to `http://192.168.0.82:3456` for it instead.
+
+### DNS without router changes (per-device, until bridge mode)
+
+The router (ISP-provided) doesn't expose DHCP-wide DNS server configuration without bridge mode + a separate router behind it — not done yet, tracked in `docs/decisions/0014`. Until then, `*.homelab.local` names (this one, `openwebui.homelab.local`, etc.) only resolve for clients explicitly pointed at `192.168.0.82` as their DNS server:
+
+- **Windows**: Settings → Network & Internet → Wi-Fi → your network → Edit DNS settings → Manual → IPv4 → Preferred DNS = `192.168.0.82` (no secondary — AdGuard Home already forwards non-local queries upstream itself; adding a public secondary can cause a client to intermittently query it directly and get `NXDOMAIN` for local rewrites instead of AdGuard's answer).
+- **Fire TV / phone**: same idea via the network's advanced/static IP settings, per device.
+
+**Watch for VPN clients silently breaking this even after it's configured** — hit twice in one session (2026-08-22): NordVPN and PIA on the Dell G5 both route LAN-destined traffic through their tunnels by default, which breaks DNS to `192.168.0.82` (times out) exactly like it broke bulk transfers to `control-plane-01` (see `infra/k8s/base/plex/README.md`). Fix per-VPN: NordVPN Settings → LAN Discovery; PIA Settings → Network → Allow LAN traffic. Until that's enabled, disconnect the VPN before relying on `*.homelab.local` resolution.
 
    **Gotcha hit during initial setup**: `VIKUNJA_SERVICE_PUBLICURL` isn't just cosmetic — the frontend uses it as the base URL for its own API calls (registration, login, everything). Setting it to `kanban.homelab.local` *before* the DNS rewrite + client DNS pointing above were actually in place caused a generic "network error" on account creation, because the browser couldn't resolve that hostname at all yet. Keep this set to the working IP until the hostname is verified resolving from wherever you're accessing it.
