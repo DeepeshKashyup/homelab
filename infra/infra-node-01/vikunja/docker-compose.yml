@@ -28,6 +28,13 @@
 # binary) with the host dir's contents, so the container fails with
 # "exec: /app/vikunja/vikunja: no such file or directory". Mount only
 # the specific subpaths that actually need to persist instead.
+#
+# IMPORTANT: the Vikunja process runs as uid 1000 inside the container.
+# If Docker auto-creates ./data/files and ./data/db (i.e. they don't
+# already exist before the first `docker compose up`), it creates them
+# as root, and the container then fails with "permission denied"
+# trying to write its own files. Create + chown them first — see this
+# directory's section in the top-level infra-node-01 README.
 
 services:
   vikunja:
@@ -38,7 +45,7 @@ services:
       - "3456:3456"
     environment:
       VIKUNJA_SERVICE_PUBLICURL: "http://kanban.homelab.local:3456/"
-      VIKUNJA_SERVICE_JWTSECRET: "${VIKUNJA_JWT_SECRET}"
+      VIKUNJA_SERVICE_SECRET: "${VIKUNJA_JWT_SECRET}"
       VIKUNJA_DATABASE_TYPE: sqlite
       VIKUNJA_DATABASE_PATH: /db/vikunja.db
     volumes:

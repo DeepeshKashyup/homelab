@@ -29,7 +29,12 @@ Second service on this node — a lightweight backlog tracker for homelab work (
    cd infra/infra-node-01/vikunja
    echo "VIKUNJA_JWT_SECRET=$(openssl rand -base64 32)" > .env
    ```
-3. Deploy:
+3. Create the data directories **and chown them to uid 1000** before first start — Vikunja's process runs as uid 1000 inside the container, and if Docker auto-creates these as root on first `up`, the container fails with "permission denied":
+   ```bash
+   mkdir -p data/files data/db
+   sudo chown -R 1000:1000 data
+   ```
+4. Deploy:
    ```bash
    docker compose up -d
    ```
