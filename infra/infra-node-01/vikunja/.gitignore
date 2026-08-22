@@ -1,0 +1,3 @@
+# Runtime data and secrets — not tracked, same reasoning as adguardhome/.gitignore
+data/
+.env

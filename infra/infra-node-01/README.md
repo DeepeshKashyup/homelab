@@ -18,3 +18,20 @@ Services running directly on `infra-node-01` (Lenovo ThinkCentre M700 Tiny) — 
 ## Adding local hostnames (the actual point of this — see ADR 0009)
 
 Once AdGuard Home is up: **Filters → DNS rewrites** → add entries like `openwebui.homelab.local → 192.168.0.106`, `comfyui.homelab.local → 192.168.0.79`. This is the prerequisite for the eventual NodePort → Traefik Ingress migration.
+
+## Vikunja (backlog / Kanban board)
+
+Second service on this node — a lightweight backlog tracker for homelab work (ADR follow-ups, on-the-horizon items), kept off the k3s cluster deliberately so it's still reachable if the cluster it's tracking work for is down. See `docs/decisions/0014` and the `vikunja/docker-compose.yml` header comment.
+
+1. Open the firewall: `sudo bash infra/infra-node-01/open-vikunja-firewall.sh`
+2. Generate a JWT secret (not checked into git):
+   ```bash
+   cd infra/infra-node-01/vikunja
+   echo "VIKUNJA_JWT_SECRET=$(openssl rand -base64 32)" > .env
+   ```
+3. Deploy:
+   ```bash
+   docker compose up -d
+   ```
+4. Complete the first-run signup at `http://192.168.0.82:3456` (first account created becomes admin — no separate claim/invite flow).
+5. Add the DNS rewrite in AdGuard Home (**Filters → DNS rewrites**): `kanban.homelab.local → 192.168.0.82` — this is the first real use of the DNS rewrite pattern described above. Afterward, use `http://kanban.homelab.local:3456`.

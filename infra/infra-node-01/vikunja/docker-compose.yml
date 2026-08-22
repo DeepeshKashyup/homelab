@@ -1,0 +1,38 @@
+# infra/infra-node-01/vikunja/docker-compose.yml
+#
+# Vikunja: lightweight backlog/Kanban board for tracking homelab work
+# (ADR follow-ups, on-the-horizon items, incidents to revisit). Runs on
+# infra-node-01, not the k3s cluster — deliberately independent of the
+# thing it's used to track work for, same reasoning as AdGuard Home
+# (see docs/decisions/0013). Single container, SQLite — no separate
+# database service needed.
+#
+# Data persists in ./data (next to this file, NOT inside the git repo's
+# tracked content — see .gitignore in this directory).
+#
+# Requires a .env file (also gitignored, not checked in) next to this
+# file with a random JWT signing secret:
+#   echo "VIKUNJA_JWT_SECRET=$(openssl rand -base64 32)" > .env
+#
+# Deploy:
+#   cd infra/infra-node-01/vikunja
+#   docker compose up -d
+#
+# Web UI: http://192.168.0.82:3456 (or http://kanban.homelab.local:3456
+# once the AdGuard Home DNS rewrite is added — see this directory's
+# README).
+
+services:
+  vikunja:
+    image: vikunja/vikunja:latest
+    container_name: vikunja
+    restart: unless-stopped
+    ports:
+      - "3456:3456"
+    environment:
+      VIKUNJA_SERVICE_PUBLICURL: "http://kanban.homelab.local:3456/"
+      VIKUNJA_SERVICE_JWTSECRET: "${VIKUNJA_JWT_SECRET}"
+      VIKUNJA_DATABASE_TYPE: sqlite
+      VIKUNJA_DATABASE_PATH: /app/vikunja/vikunja.db
+    volumes:
+      - ./data:/app/vikunja
