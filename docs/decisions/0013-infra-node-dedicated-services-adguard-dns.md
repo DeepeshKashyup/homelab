@@ -35,7 +35,7 @@ The M700 will **not** join the k3s cluster as a third worker. It's set up as `in
 
 - [x] Bootstrap `infra-node-01` (SSH, hardening, base packages)
 - [x] Install Docker
-- [ ] Deploy AdGuard Home and complete first-run setup
-- [ ] Point router DHCP's DNS server at `192.168.0.82`
-- [ ] Add DNS rewrites for existing apps (Open WebUI, ComfyUI) as a first test
-- [ ] Decide what runs on this node next (monitoring is the leading candidate, given the recent GPU hang incidents on `gpu-node-01` — see `CLAUDE.md`)
+- [x] Deploy AdGuard Home and complete first-run setup
+- [ ] Point router DHCP's DNS server at `192.168.0.82` — blocked on the ISP router supporting this without bridge mode; a TP-Link Archer BE6500 was added 2026-08-22 (see ADR 0014) but so far only in Access Point mode, not yet the full router replacement this needs
+- [x] Add DNS rewrites for existing apps (Open WebUI done — `openwebui.homelab.local`; ComfyUI still open)
+- [x] Decide what runs on this node next — Vikunja (backlog) and Uptime Kuma (monitoring, starting with `gpu-node-01` ping + SSH TCP checks) both deployed
