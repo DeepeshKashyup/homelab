@@ -39,7 +39,8 @@ None of this was fatal for today's workloads (Ollama/Open WebUI/ComfyUI are late
 
 ## Follow-ups
 
-- [ ] Promote `control-plane-01`'s wired `eno1` (`.47`) to its stable/primary address, replacing Wi-Fi as primary (router DHCP reservation or static netplan config, plus updating the SSH alias, kubeconfig references, and anything else that currently assumes `.106`)
+- [x] Give `control-plane-01`/`gpu-node-01` a real wired AP+switch instead of a bare cable run — done 2026-08-22, TP-Link Archer BE6500 in Access Point mode (`192.168.0.43`), both nodes connected through it and confirmed stable
+- [ ] Promote `control-plane-01`'s wired `eno1` (`.47`) to its stable/primary address, replacing Wi-Fi as primary (router DHCP reservation or static netplan config, plus updating the SSH alias, kubeconfig references, and anything else that currently assumes `.106`) — the BE6500 being in place makes this easier (a stable reservation point), but the actual promotion hasn't happened yet
 - [ ] Verify `gpu-node-01` has no equivalent Wi-Fi fallback path relied on anywhere (it's already wired — confirm nothing silently depends on its Wi-Fi interface)
 - [ ] When a compute node is purchased or repurposed in the future, verify wired Ethernet capability (and actually wire it) as part of bootstrap, not as an afterthought
 - [ ] Revisit shared storage options (NFS export from an existing node vs. a small dedicated NAS box) once Spark-on-Kubernetes work is actually scheduled, per ADR 0006's deferred future decision
