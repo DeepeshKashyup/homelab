@@ -51,3 +51,20 @@ The router (ISP-provided) doesn't expose DHCP-wide DNS server configuration with
 **Watch for VPN clients silently breaking this even after it's configured** — hit twice in one session (2026-08-22): NordVPN and PIA on the Dell G5 both route LAN-destined traffic through their tunnels by default, which breaks DNS to `192.168.0.82` (times out) exactly like it broke bulk transfers to `control-plane-01` (see `infra/k8s/base/plex/README.md`). Fix per-VPN: NordVPN Settings → LAN Discovery; PIA Settings → Network → Allow LAN traffic. Until that's enabled, disconnect the VPN before relying on `*.homelab.local` resolution.
 
    **Gotcha hit during initial setup**: `VIKUNJA_SERVICE_PUBLICURL` isn't just cosmetic — the frontend uses it as the base URL for its own API calls (registration, login, everything). Setting it to `kanban.homelab.local` *before* the DNS rewrite + client DNS pointing above were actually in place caused a generic "network error" on account creation, because the browser couldn't resolve that hostname at all yet. Keep this set to the working IP until the hostname is verified resolving from wherever you're accessing it.
+
+## Uptime Kuma (monitoring)
+
+Third service on this node — uptime/status monitoring, starting with `gpu-node-01` (motivated by its recurring GPU hang incidents, see CLAUDE.md — a ping/TCP monitor at least catches a full node hang even without deep GPU health metrics). Same off-cluster reasoning as AdGuard Home and Vikunja.
+
+1. Open the firewall: `sudo bash infra/infra-node-01/open-uptime-kuma-firewall.sh`
+2. Deploy:
+   ```bash
+   cd infra/infra-node-01/uptime-kuma
+   docker compose up -d
+   ```
+3. Complete first-run setup at `http://192.168.0.82:3001` (creates the admin account).
+4. Add monitors through the web UI — no simple provisioning API for this one, unlike Vikunja, so this part can't be scripted. Start with:
+   - **Ping**: `gpu-node-01` → `192.168.0.79`
+   - **TCP**: `192.168.0.79:22` (SSH)
+   - Optionally, TCP/HTTP checks on whichever of Ollama (`31434`) / ComfyUI (`30188`) is currently scaled up — expect the other to show "down", that's normal given the single-GPU toggle (see `infra/k8s/base/comfyui/README.md`), not a real alert.
+5. Optional: add the DNS rewrite (`uptime.homelab.local → 192.168.0.82`) same as the other two services — remember it only resolves for clients pointed at AdGuard Home for DNS (see above).

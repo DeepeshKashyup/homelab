@@ -1,0 +1,36 @@
+# infra/infra-node-01/uptime-kuma/docker-compose.yml
+#
+# Uptime Kuma: lightweight uptime/status monitoring, starting with
+# gpu-node-01 (motivated by its recurring GPU hang incidents -- see
+# CLAUDE.md -- where the node/GPU stops responding; a ping/TCP monitor
+# at least catches a full hang even without deep GPU health metrics).
+# Runs on infra-node-01, not the k3s cluster -- same reasoning as
+# AdGuard Home and Vikunja: independent of the thing it's monitoring,
+# so it's still up if the cluster/a node it watches goes down.
+# See docs/decisions/0013.
+#
+# Data persists in ./data (next to this file, NOT inside the git repo's
+# tracked content -- see .gitignore in this directory). Unlike Vikunja,
+# mounting the whole ./data dir here matches Uptime Kuma's own upstream
+# recommendation -- its app code doesn't live under /app/data, so this
+# doesn't shadow anything.
+#
+# Deploy:
+#   cd infra/infra-node-01/uptime-kuma
+#   docker compose up -d
+#
+# Web UI: http://192.168.0.82:3001 -- first visit creates the admin
+# account. Monitors (ping to gpu-node-01, TCP checks on its services,
+# etc.) are configured through the web UI -- Uptime Kuma doesn't have a
+# simple provisioning REST API the way Vikunja does, so this part can't
+# be scripted the way the Vikunja backlog import was.
+
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: uptime-kuma
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./data:/app/data
