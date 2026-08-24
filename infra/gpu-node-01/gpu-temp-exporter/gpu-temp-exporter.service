@@ -1,0 +1,16 @@
+[Unit]
+Description=GPU temperature JSON exporter (nvidia-smi over HTTP, for Uptime Kuma polling)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=deepesh
+ExecStart=/usr/bin/python3 /opt/gpu-temp-exporter/gpu_temp_exporter.py
+Restart=on-failure
+RestartSec=5s
+# No elevated privileges needed -- nvidia-smi query subcommands are readable
+# by a regular user, and the HTTP port (9400) is unprivileged.
+
+[Install]
+WantedBy=multi-user.target
