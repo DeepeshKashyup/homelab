@@ -12,7 +12,7 @@ sudo k3s kubectl apply -f infra/k8s/base/ollama-openwebui/02-open-webui.yaml
 
 ## Access from the LAN (e.g. the Dell G5)
 
-- Open WebUI: `http://<any-node-ip>:30080` (e.g. `http://192.168.0.106:30080`) — sign up on first visit, the first account becomes admin.
+- Open WebUI: `http://<any-node-ip>:30080` (e.g. `http://192.168.0.47:30080`) — sign up on first visit, the first account becomes admin.
 - Ollama API directly: `http://<any-node-ip>:31434` (e.g. `http://192.168.0.79:31434`) — e.g. `curl http://192.168.0.79:31434/api/tags`.
 
 NodePort Services are reachable via **any** node's IP regardless of which node the pod actually runs on — kube-proxy routes it internally.

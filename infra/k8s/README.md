@@ -12,7 +12,8 @@ Cluster install scripts and Kubernetes manifests.
   - `ollama-openwebui/` — Ollama (GPU-scheduled) + Open WebUI, exposed via NodePort (see [ADR 0009](../../docs/decisions/0009-nodeport-then-traefik-ingress.md)). See its own README for apply/access instructions.
   - `comfyui/` — ComfyUI (image generation, GPU-scheduled), exposed via NodePort. Deployed at `replicas: 0` — only one of Ollama/ComfyUI can hold `gpu-node-01`'s single GPU at a time. See its own README for the switch-over commands.
   - `plex/` — Plex Media Server, pinned to `control-plane-01` (no GPU contention, most free disk), exposed via NodePort. See its own README for apply steps, first-run setup, and the large-file transfer flow.
-  - Still to add: Cilium CNI, CloudNativePG.
+  - `postgres/` — shared Postgres (CloudNativePG operator, single instance) for all apps, pinned to `control-plane-01`, `ClusterIP`-only (no NodePort — see [ADR 0015](../../docs/decisions/0015-cloudnativepg-single-instance-clusterip.md)). Includes a weekly `pg_dumpall` CronJob to an external USB drive for backups. See its own README for apply steps, credentials, adding per-app databases, and the backup/restore flow.
+  - Still to add: Cilium CNI.
 - **`smoke-tests/`** — one-shot validation pods, applied and deleted manually, not part of the standing cluster state (e.g. `gpu-smoke-test.yaml`).
 - **`overlays/`** — per-environment or per-node overrides (Kustomize-style), e.g. GPU node taints/tolerations, resource limits tuned to the Dell G5 / GTX 1060 baseline. Nothing here yet.
 

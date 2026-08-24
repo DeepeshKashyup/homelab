@@ -17,7 +17,7 @@ Services running directly on `infra-node-01` (Lenovo ThinkCentre M700 Tiny) — 
 
 ## Adding local hostnames (the actual point of this — see ADR 0009)
 
-Once AdGuard Home is up: **Filters → DNS rewrites** → add entries like `openwebui.homelab.local → 192.168.0.106`, `comfyui.homelab.local → 192.168.0.79`. This is the prerequisite for the eventual NodePort → Traefik Ingress migration.
+Once AdGuard Home is up: **Filters → DNS rewrites** → add entries like `openwebui.homelab.local → 192.168.0.47`, `comfyui.homelab.local → 192.168.0.79`. This is the prerequisite for the eventual NodePort → Traefik Ingress migration.
 
 ## Vikunja (backlog / Kanban board)
 

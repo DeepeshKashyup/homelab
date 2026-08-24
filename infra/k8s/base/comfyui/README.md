@@ -31,7 +31,7 @@ sudo k3s kubectl scale deployment/ollama -n ollama --replicas=1
 
 ## Access from the LAN (e.g. the Dell G5)
 
-`http://<any-node-ip>:30188` (e.g. `http://192.168.0.106:30188`) once scaled up and the pod is `Running`.
+`http://<any-node-ip>:30188` (e.g. `http://192.168.0.47:30188`) once scaled up and the pod is `Running`.
 
 ## First model
 

@@ -15,7 +15,7 @@ No firewall change needed — `32400` already falls inside the NodePort range op
 
 No `PLEX_CLAIM` token is baked into the manifest (it's only valid ~4 minutes, not something to check in). Once the pod is `Running`:
 
-1. From a browser on the LAN, go to `http://192.168.0.106:32400/web`.
+1. From a browser on the LAN, go to `http://192.168.0.47:32400/web`.
 2. Sign in with your Plex account and step through the setup wizard.
 3. When it asks you to add a library, point it at `/movies` (that's where `plex-media` is mounted) and name it "Movies".
 
@@ -26,11 +26,11 @@ No `PLEX_CLAIM` token is baked into the manifest (it's only valid ~4 minutes, no
 Do it manually instead:
 
 1. In Plex **Settings → Network**, check "Manually specify public port" and set it to `32400`.
-2. On the router, add a port-forward: external `32400` (TCP) → internal `192.168.0.106:32400` (the node's stable Wi-Fi address — **not** `.47`, which is a plain DHCP lease that can change; see the transfer-gotchas section above). No extra `ufw` change needed, same reasoning as the Apply section above.
+2. On the router, add a port-forward: external `32400` (TCP) → internal `192.168.0.47:32400` (`eno1`, `control-plane-01`'s wired address — promoted to primary 2026-08-23, see [ADR 0016](../../../../docs/decisions/0016-promote-wired-eno1-primary.md); Wi-Fi/`.106` is now the fallback). No extra `ufw` change needed, same reasoning as the Apply section above.
 3. Confirm Plex Settings → Network flips to "Fully accessible" (green).
 4. If it still doesn't work, check whether the ISP is doing CGNAT (router's WAN IP doesn't match what an external site reports as your public IP) — port forwarding can't work at all behind CGNAT, and the fix is different (e.g. Tailscale) rather than more router config.
 
-Status as of 2026-08-22: guidance given, not yet confirmed working end to end from an actual outside network.
+Status as of 2026-08-22: guidance given, not yet confirmed working end to end from an actual outside network. **If a port-forward rule was already added pointing at `.106`, it needs updating to `.47`** now that the primary address has changed (2026-08-23) — check the router's port-forward config, not just this doc.
 
 ## Getting a movie file onto the media PVC
 

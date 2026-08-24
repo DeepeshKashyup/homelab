@@ -1,0 +1,82 @@
+# Weekly logical backup of the whole Postgres instance to the external USB
+# drive attached to control-plane-01. Mitigates the single point of failure
+# noted in 01-postgres-cluster.yaml: local-path storage is plain node-local
+# disk with no redundancy — this is what makes a node wipe recoverable.
+#
+# - nodeSelector + hostPath both pin this to control-plane-01: the hostPath
+#   only exists on that node (the external drive is mounted there — see
+#   README's "Backups" section for the mount prerequisite, done once
+#   outside Kubernetes, at the OS level).
+# - Uses pg_dumpall (not pg_dump) so every database + role on the instance
+#   is captured, not just today's bootstrap "app" db — matters once
+#   n8n/agents get their own databases via CNPG's Database CRD.
+# - Runs as the CNPG-generated superuser (postgres-superuser secret,
+#   requires enableSuperuserAccess: true in the Cluster spec) since
+#   pg_dumpall needs superuser to dump roles. This secret stays internal
+#   to this one CronJob — nothing external reads it.
+# - Same image as the Cluster itself, so pg_dumpall's client version always
+#   matches the server, avoiding version-skew dump issues.
+# - Retention: prunes dumps older than 8 weeks so the external drive
+#   doesn't fill silently. Adjust PGBACKREST... no — this is plain
+#   pg_dumpall, not pgBackRest; adjust the `find -mtime` window below if a
+#   longer/shorter retention is wanted.
+# - This is a logical backup (SQL text), not a CNPG-native physical backup
+#   with PITR (barman-cloud) — that needs an S3-compatible target (e.g. a
+#   future MinIO instance), which doesn't exist yet. Logged as a backlog
+#   follow-up; see docs/decisions/0015 "Future" section.
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: postgres
+spec:
+  schedule: "0 3 * * 0" # Sunday 03:00
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          nodeSelector:
+            kubernetes.io/hostname: control-plane-01
+          containers:
+            - name: pg-dumpall
+              image: ghcr.io/cloudnative-pg/postgresql:17.6
+              env:
+                - name: PGHOST
+                  value: postgres-rw.postgres.svc.cluster.local
+                - name: PGPORT
+                  value: "5432"
+                - name: PGUSER
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-superuser
+                      key: username
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-superuser
+                      key: password
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  set -euo pipefail
+                  outfile="/backup/postgres-all-$(date +%Y%m%d-%H%M%S).sql.gz"
+                  echo "Dumping to ${outfile}"
+                  pg_dumpall | gzip > "${outfile}"
+                  echo "Pruning dumps older than 8 weeks"
+                  find /backup -name 'postgres-all-*.sql.gz' -mtime +56 -delete
+                  echo "Done. Current backups:"
+                  ls -lh /backup
+              volumeMounts:
+                - name: backup-drive
+                  mountPath: /backup
+          volumes:
+            - name: backup-drive
+              hostPath:
+                path: /mnt/postgres-backups
+                type: Directory

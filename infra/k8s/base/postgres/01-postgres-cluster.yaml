@@ -1,0 +1,53 @@
+# Shared Postgres for all apps (n8n, the nlp-to-sql agent, etc.), via the
+# CloudNativePG operator (installed cluster-wide beforehand — see this
+# directory's README for the exact `kubectl apply --server-side` command,
+# not vendored here since it's the unmodified upstream operator manifest).
+#
+# - instances: 1 — only one non-GPU-contending node exists today
+#   (control-plane-01), so real HA isn't possible yet. Single instance is
+#   the honest "start small" choice; revisit if a second general-purpose
+#   node joins the cluster. See docs/decisions/0015.
+# - affinity.nodeSelector pins this to control-plane-01, same reasoning as
+#   Open WebUI and Plex: most free disk, no GPU contention.
+# - storage: local-path, same StorageClass every other app on this cluster
+#   uses. This is plain node-local disk — NOT redundant. See the weekly
+#   pg_dumpall CronJob (02-postgres-backup-cronjob.yaml) for the mitigation,
+#   and docs/decisions/0015 for the full reasoning.
+# - bootstrap.initdb creates a single "app"/"app" database/owner — CNPG's
+#   own default convention, used as a bootstrap/admin database only. Real
+#   per-app databases (n8n, agents, etc.) get added later via CNPG's
+#   declarative `Database` CRD rather than reusing this one — see README.
+# - enableSuperuserAccess: true — off by default in recent CNPG, turned on
+#   here so the backup CronJob can run pg_dumpall (which needs superuser)
+#   against every database on the instance, not just "app". The superuser
+#   secret (postgres-superuser) stays internal to the cluster; nothing
+#   external reads it.
+# - No CPU/memory requests/limits yet — same deliberate deferral as
+#   Ollama's manifest (infra/k8s/base/ollama-openwebui/01-ollama.yaml).
+# - No NodePort. Unlike every other app in this repo (NodePort per ADR
+#   0009), Postgres is backend-only infrastructure other pods reach via the
+#   postgres-rw/-ro/-r Services CNPG creates automatically. Putting a
+#   database on the LAN unauthenticated-by-default is a real exposure risk
+#   for no benefit today. Admin access from the Dell G5 goes through
+#   `kubectl port-forward` instead — see README. This deviates from the
+#   NodePort-everywhere pattern deliberately; see docs/decisions/0015.
+
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: postgres
+  namespace: postgres
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.6
+  enableSuperuserAccess: true
+  affinity:
+    nodeSelector:
+      kubernetes.io/hostname: control-plane-01
+  storage:
+    size: 20Gi
+    storageClass: local-path
+  bootstrap:
+    initdb:
+      database: app
+      owner: app
