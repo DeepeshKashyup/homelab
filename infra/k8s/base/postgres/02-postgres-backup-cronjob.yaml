@@ -1,7 +1,10 @@
 # Weekly logical backup of the whole Postgres instance to the external USB
-# drive attached to control-plane-01. Mitigates the single point of failure
-# noted in 01-postgres-cluster.yaml: local-path storage is plain node-local
-# disk with no redundancy — this is what makes a node wipe recoverable.
+# drive attached to control-plane-01 ("Backup Plus", exFAT, mounted at
+# /mnt/backup-plus — a pre-existing personal drive with other data on it,
+# hence the dedicated postgres-backups/ subfolder rather than owning the
+# whole drive). Mitigates the single point of failure noted in
+# 01-postgres-cluster.yaml: local-path storage is plain node-local disk
+# with no redundancy — this is what makes a node wipe recoverable.
 #
 # - nodeSelector + hostPath both pin this to control-plane-01: the hostPath
 #   only exists on that node (the external drive is mounted there — see
@@ -78,5 +81,5 @@ spec:
           volumes:
             - name: backup-drive
               hostPath:
-                path: /mnt/postgres-backups
+                path: /mnt/backup-plus/postgres-backups
                 type: Directory

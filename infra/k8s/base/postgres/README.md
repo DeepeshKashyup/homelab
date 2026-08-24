@@ -70,14 +70,17 @@ spec:
 
 Data lives on `control-plane-01`'s local disk (`local-path` StorageClass) — plain node-local storage, **not redundant**. If that disk or node is lost, the data is lost unless it's been backed up first. That's what `02-postgres-backup-cronjob.yaml` is for.
 
-**One-time OS-level prerequisite on `control-plane-01`** (done outside Kubernetes, before applying the CronJob):
+**One-time OS-level prerequisite on `control-plane-01`** (done outside Kubernetes, before applying the CronJob) — done 2026-08-24:
 
-1. Identify the external USB drive: `lsblk` / `sudo blkid`.
-2. Format (only if blank/repurposable — never on a drive with existing data) `ext4`, and mount at a stable path by UUID via `/etc/fstab`:
+1. Identified the external USB drive: `lsblk` / `sudo blkid` found `/dev/sdb1`, labeled "Backup Plus", **exFAT**, UUID `5EF4-3CF2` — already holding other personal data (photos, GoPro footage, an OneDrive backup, etc.), so it was **not** reformatted.
+2. Mounted as-is (exFAT, not reformatted to ext4) at a stable path by UUID via `/etc/fstab`, with `nofail` so a boot doesn't hang if the drive isn't plugged in, and permissive `uid=0,gid=0,umask=000` mount options since exFAT has no native POSIX permissions (the CronJob's container doesn't necessarily run as the same UID as the host):
    ```
-   UUID=<drive-uuid>  /mnt/postgres-backups  ext4  defaults  0  2
+   UUID=5EF4-3CF2  /mnt/backup-plus  exfat  defaults,nofail,uid=0,gid=0,umask=000  0  0
    ```
-3. `sudo mkdir -p /mnt/postgres-backups && sudo mount -a` and confirm it's mounted: `df -h /mnt/postgres-backups`.
+3. `sudo mkdir -p /mnt/backup-plus && sudo mount -a`, confirmed with `df -h /mnt/backup-plus`.
+4. Created a dedicated subfolder rather than writing into the drive's root: `sudo mkdir -p /mnt/backup-plus/postgres-backups` — this is what the CronJob's `hostPath` actually points at.
+
+If this drive is ever swapped for a different one, redo these four steps with the new drive's UUID and update `02-postgres-backup-cronjob.yaml`'s `hostPath.path` if the subfolder name changes.
 
 Then apply the CronJob:
 
@@ -92,7 +95,7 @@ It runs weekly (Sunday 03:00), dumping every database + role on the instance (`p
 ```bash
 sudo k3s kubectl create job --from=cronjob/postgres-backup -n postgres postgres-backup-test
 sudo k3s kubectl logs -n postgres job/postgres-backup-test
-ls -lh /mnt/postgres-backups   # on control-plane-01
+ls -lh /mnt/backup-plus/postgres-backups   # on control-plane-01
 ```
 
 **Restoring** from one of these dumps (disaster-recovery case, e.g. after a node wipe): stand the Cluster back up empty (steps above), port-forward in, then `gunzip -c postgres-all-<date>.sql.gz | psql -h localhost -U app -d app` (needs superuser creds for a full `pg_dumpall` restore — pipe to `postgres` db via the superuser instead of `app` if restoring roles/other databases too).
