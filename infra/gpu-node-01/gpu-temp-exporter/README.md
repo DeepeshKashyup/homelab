@@ -28,9 +28,11 @@ Verify: `curl http://localhost:9400/` should return `{"temperature_c": 39, "gpu"
 3. URL: `http://192.168.0.79:9400/`
 4. Friendly Name: `gpu-node-01 GPU Temp`
 5. Heartbeat Interval: `300` (5 minutes, as requested).
-6. Json Query Expression: `temperature_c`
-7. Expected Value: `< 85` (comparison operator + value — 85°C leaves headroom below where consumer NVIDIA GPUs typically start throttling; adjust if you'd rather alert earlier).
-8. Save. Uptime Kuma will now show this monitor as "down" (red) whenever the queried temperature is 85°C or higher, and "up" (green) otherwise, checked every 5 minutes.
+6. Json Query Expression (this is JSONata, not a bare field name — the comparison has to live in the expression itself): `temperature_c < 85`
+7. Expected Value: `true`
+8. Save.
+
+**How this actually evaluates** (Uptime Kuma runs the Json Query Expression as JSONata against the response body): `temperature_c` extracts `39` from `{"temperature_c": 39, ...}`, the full expression `temperature_c < 85` evaluates to `true`, and since that matches the Expected Value (`true`), the monitor stays green. If the temperature reaches 85°C or higher, the expression evaluates to `false`, mismatches the expected `true`, and the monitor goes red/alerts. 85°C leaves headroom below where consumer NVIDIA GPUs typically start throttling — adjust the threshold in the expression if you'd rather alert earlier.
 
 ## Why a new service instead of reusing something existing
 
