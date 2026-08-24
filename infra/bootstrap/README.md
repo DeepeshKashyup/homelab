@@ -10,4 +10,6 @@ Scripts and notes for bringing a bare node to a known-good state before it joins
 
 Run `install-base-packages.sh` first on any new or reimaged node — it wasn't written until after `control-plane-01` turned out to be missing `curl` mid-way through k3s install, so don't assume general tooling is present just because SSH bootstrap ran.
 
+**`enable-wol.sh`** — enables and persists Wake-on-LAN (`ethtool ... wol g`) on a node's wired NIC, for use with `infra/jumpbox/wake-cluster.ps1`. Requires Wake-on-LAN also enabled in that machine's BIOS/UEFI first (physical, next-boot step this script can't do) — see its header comment and the Vikunja backlog item.
+
 Each node's bootstrap run should be recorded in [`docs/hardware/`](../../docs/hardware/) (what was done, when, and any quirks specific to that box).

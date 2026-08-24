@@ -5,10 +5,11 @@ Scripts meant to run **from the Dell G5 jump box** (PowerShell), not on the clus
 Keep `.ps1` files here plain ASCII (no em-dashes, smart quotes, etc.) — Windows PowerShell 5.1 can misparse UTF-8-without-BOM files containing non-ASCII characters under some console codepages, throwing a confusing `"The string is missing the terminator"` error that has nothing to do with the actual quoting. Hit this on the first version of `shutdown-cluster.ps1`; fixed by rewriting with only ASCII.
 
 - **`shutdown-cluster.ps1`** — shuts down both nodes over SSH (`ssh gpu-node-01`/`ssh control-plane-01` aliases). Will prompt for the `sudo` password interactively on each node, same as running the command by hand.
+- **`wake-cluster.ps1`** — sends Wake-on-LAN magic packets to both nodes (`-Node control-plane-01`/`-Node gpu-node-01` to target just one). Prepared 2026-08-24 but **not usable yet** — needs BIOS/UEFI Wake-on-LAN enabled on each machine (physical, next-boot step) and [`infra/bootstrap/enable-wol.sh`](../bootstrap/enable-wol.sh) run on each node first. See the Vikunja backlog item for the full checklist.
 
 ## After a physical restart
 
-No Wake-on-LAN is configured, so bringing the nodes back up means physically powering them on. Once both are up:
+Wake-on-LAN isn't set up yet (see `wake-cluster.ps1` above), so bringing the nodes back up today means physically powering them on. Once both are up:
 
 1. Give it a minute or two — `k3s`/`k3s-agent` start automatically (systemd-enabled), and need a short window to reconcile.
 2. Check cluster health from `control-plane-01`: `sudo k3s kubectl get nodes -o wide` — both should show `Ready`.
