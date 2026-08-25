@@ -25,6 +25,14 @@
 # - Exposed via NodePort per ADR 0009 (interim, pre-Ingress). Requires the
 #   NodePort range open in ufw on whichever node(s) serve it — see
 #   infra/k8s/open-nodeport-firewall.sh.
+# - memory request/limit: see ADR 0018. A dual-14B Wan2.2 generation drove
+#   this pod's host RAM (not VRAM — a separate, unbounded thing ComfyUI's
+#   dynamic CPU-offload staging can consume) to ~45-48GB with no limit set,
+#   exceeding gpu-node-01's 30GB RAM + 8GB swap and hard-crashing the whole
+#   node (not just this pod). The limit below makes that fail as a
+#   contained, visible pod OOM-kill/restart instead — it does NOT make that
+#   specific dual-14B workflow succeed on this node's RAM; see ADR 0018's
+#   follow-ups for what actually would.
 
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -80,8 +88,11 @@ spec:
             - name: CLI_ARGS
               value: ""
           resources:
+            requests:
+              memory: 8Gi
             limits:
               nvidia.com/gpu: 1
+              memory: 24Gi
           volumeMounts:
             - name: models
               mountPath: /root/ComfyUI/models

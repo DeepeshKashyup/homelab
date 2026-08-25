@@ -3,9 +3,12 @@
 # - nodeSelector pins it to gpu-node-01 (labeled nvidia.com/gpu.present=true
 #   by infra/k8s/configure-nvidia-runtime.sh — see ADR 0008).
 # - resources.limits requests the GPU device via the NVIDIA device plugin.
-# - No CPU/memory requests or limits set yet — deliberately deferred, see
-#   CLAUDE.md follow-ups on resource tuning; models can need significant
-#   RAM to load and an early hard limit risks OOM-killing mid-load.
+# - memory request/limit: added per ADR 0018, after an unbounded ComfyUI
+#   pod on this same node drove host RAM to ~45-48GB and hard-crashed
+#   gpu-node-01 (30GB RAM + 8GB swap) rather than just getting its own pod
+#   OOM-killed. Sized generously (24Gi) specifically so a legitimate model
+#   load doesn't get killed mid-load — the point is a ceiling well below
+#   the node's total capacity, not a tight budget.
 # - Models persist via a local-path PVC (k3s's default StorageClass) on
 #   gpu-node-01's disk, so a pod restart doesn't mean re-pulling models.
 # - Exposed via NodePort per ADR 0009 (interim, pre-Ingress).
@@ -48,8 +51,11 @@ spec:
           ports:
             - containerPort: 11434
           resources:
+            requests:
+              memory: 8Gi
             limits:
               nvidia.com/gpu: 1
+              memory: 24Gi
           volumeMounts:
             - name: models
               mountPath: /root/.ollama
