@@ -1,6 +1,8 @@
 # jumpbox/
 
-Scripts meant to run **from the Dell G5 jump box** (PowerShell), not on the cluster nodes themselves — everything else under `infra/` runs on `control-plane-01`/`gpu-node-01` directly.
+Scripts meant to run **from a jump box**, not on the cluster nodes themselves — everything else under `infra/` runs on `control-plane-01`/`gpu-node-01` directly.
+
+There are now two independent jump boxes (see `docs/hardware/dell-g5.md` and `docs/hardware/macbook-pro-jumpbox.md`), each with its own `homelab_ed25519` keypair and `~/.ssh/config` aliases (`gpu-node-01`, `control-plane-01`, `control-plane-01-wifi`, `infra-node-01`) — no shared state between them. The `.ps1` scripts below are Dell G5 (PowerShell)-specific; the MacBook Pro jump box runs the equivalent commands directly in a shell (`ssh gpu-node-01 sudo shutdown -h now`, etc.) rather than via a script, since there's nothing PowerShell-specific to work around on macOS.
 
 Keep `.ps1` files here plain ASCII (no em-dashes, smart quotes, etc.) — Windows PowerShell 5.1 can misparse UTF-8-without-BOM files containing non-ASCII characters under some console codepages, throwing a confusing `"The string is missing the terminator"` error that has nothing to do with the actual quoting. Hit this on the first version of `shutdown-cluster.ps1`; fixed by rewriting with only ASCII.
 
