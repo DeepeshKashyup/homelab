@@ -1,0 +1,129 @@
+# n8n: workflow automation, running on control-plane-01. First real consumer
+# of the shared Postgres cluster (infra/k8s/base/postgres/) beyond its own
+# bootstrap database — see 01-postgres-role-db.yaml for the dedicated
+# n8n database/role. Backlog #16; #17 (hybrid local Ollama + Claude
+# reasoning flow) and #18 (Telegram bot) build on this once it's up.
+#
+# - nodeSelector pins it to control-plane-01, same reasoning as Open WebUI/
+#   Postgres/Plex — no GPU needed, keeps it off gpu-node-01's single
+#   manually-toggled GPU (see CLAUDE.md's deferred-taint note).
+# - DB_* env vars point at Postgres's postgres-rw Service (in-cluster only,
+#   per that directory's README) using the n8n-scoped role from
+#   01-postgres-role-db.yaml, not the bootstrap "app" database.
+# - N8N_ENCRYPTION_KEY and the DB password both come from Secrets created
+#   out of band (not checked in) — see this directory's README for the
+#   exact commands. Losing the encryption key makes every stored credential
+#   in n8n's workflows undecryptable, so back up whatever generates it.
+# - WEBHOOK_URL is set to the NodePort address so webhook nodes (e.g. a
+#   future Telegram bot integration, backlog #18) generate URLs that
+#   actually resolve from outside the pod network.
+# - n8n-data PVC covers local state (binary data cache, etc.) that isn't in
+#   Postgres; the workflow/credential/execution data itself lives in the
+#   n8n database.
+# - resources.limits.memory set from day one per ADR 0018's lesson (a pod
+#   with no memory limit took the whole gpu-node-01 node down once) — n8n
+#   itself is lightweight, headroom here is generous, not a tight measured
+#   number.
+# - Exposed via NodePort per ADR 0009 (interim, pre-Ingress), reusing n8n's
+#   own default port 5678 (-> 30678, inside the NodePort range already
+#   opened by infra/k8s/open-nodeport-firewall.sh).
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: n8n-data
+  namespace: n8n
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: n8n
+  namespace: n8n
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # local-path PVC is ReadWriteOnce; avoid two pods fighting over it
+  selector:
+    matchLabels:
+      app: n8n
+  template:
+    metadata:
+      labels:
+        app: n8n
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: control-plane-01
+      containers:
+        - name: n8n
+          image: docker.n8n.io/n8nio/n8n:latest
+          ports:
+            - containerPort: 5678
+          env:
+            - name: GENERIC_TIMEZONE
+              value: "Etc/UTC" # adjust to your local timezone, e.g. America/Chicago
+            - name: N8N_HOST
+              value: "192.168.0.47"
+            - name: N8N_PORT
+              value: "5678"
+            - name: N8N_PROTOCOL
+              value: "http"
+            - name: WEBHOOK_URL
+              value: "http://192.168.0.47:30678/"
+            - name: DB_TYPE
+              value: "postgresdb"
+            - name: DB_POSTGRESDB_HOST
+              value: "postgres-rw.postgres.svc.cluster.local"
+            - name: DB_POSTGRESDB_PORT
+              value: "5432"
+            - name: DB_POSTGRESDB_DATABASE
+              value: "n8n"
+            - name: DB_POSTGRESDB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-db-credentials
+                  key: username
+            - name: DB_POSTGRESDB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-db-credentials
+                  key: password
+            - name: N8N_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-encryption-key
+                  key: N8N_ENCRYPTION_KEY
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          volumeMounts:
+            - name: data
+              mountPath: /home/node/.n8n
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: n8n-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: n8n
+  namespace: n8n
+spec:
+  type: NodePort
+  selector:
+    app: n8n
+  ports:
+    - port: 5678
+      targetPort: 5678
+      nodePort: 30678
