@@ -48,16 +48,21 @@ From a browser on the LAN, go to `http://192.168.0.47:30678`. n8n's first-run wi
 
 Ollama's internal Service is reachable in-cluster at `http://ollama.ollama.svc.cluster.local:11434` — no NodePort hop needed since both run in the same k3s cluster. Confirmed working via `kubectl exec -n n8n deploy/n8n -- wget -qO- http://ollama.ollama.svc.cluster.local:11434/api/tags`, which returned all 5 loaded models. Remember Ollama needs to actually be scaled up (`replicas: 1`) and ComfyUI scaled down first — see [`../ollama-openwebui/README.md`](../ollama-openwebui/) for the toggle, since both still contend for `gpu-node-01`'s single GPU.
 
-## Backlog #17: hybrid local + Claude triage workflow
+## Backlog #17: hybrid local + Claude workflow
 
-[`workflows/hybrid-local-claude-triage.json`](workflows/hybrid-local-claude-triage.json) is a small router workflow validating the hybrid-reasoning pattern: a cheap local model (`gemma3:4b` via Ollama) triages each question first and answers directly if it's confident; anything it flags as uncertain escalates to the Claude API for the real answer. Plain **HTTP Request** nodes are used throughout rather than n8n's bundled LangChain/AI-Agent nodes — those node types move fast across n8n versions and are riskier to hand-author blind outside the UI.
+**v1 (superseded), [`workflows/hybrid-local-claude-triage.json`](workflows/hybrid-local-claude-triage.json):** a hardcoded `IF` node routes to Claude based on a confidence flag the local model outputs. Functional, but on reflection this is a conditional pipeline, not actually an agent — the model doesn't choose to call Claude, my `IF` node does, based on a field the model happened to output. Kept in the repo for reference/comparison, no longer the recommended import.
+
+**v2 (current), [`workflows/hybrid-local-claude-agent.json`](workflows/hybrid-local-claude-agent.json):** a real agent using n8n's native LangChain **AI Agent** node. `qwen2.5:14b` (via Ollama, one of the 5 local models with tool-calling capability) is the agent's own reasoning model, with Claude wired in as a callable **tool** (`@n8n/n8n-nodes-langchain.toolHttpRequest`) rather than a hardcoded branch — the model itself decides, per request, whether to answer directly or invoke the tool. This is the thing backlog #17 actually asked for.
+
+These are the most version-fragile node types in n8n (schemas move across releases) — confirmed present in this install (`n8n-nodes-langchain`'s `Agent`, `LmChatOllama`, `ToolHttpRequest` node files all exist), but if any of the three shows as an unrecognized/red node after import, delete just that node and re-add it fresh from the node panel (**AI → Agent / Chat Model / Tool**), then reconnect — the rest of the workflow is unaffected.
 
 **Import it:**
 
-1. In n8n, **Workflows → Import from File**, pick this JSON.
-2. Open the **Ask Claude (Escalation)** node and assign an Anthropic API credential (create one under **Credentials** with an API key from `console.anthropic.com` — not included in the JSON, never checked into git).
-3. Click **Set Question**, edit the `question` value, then **Execute workflow** from the trigger. Try one simple factual question (should stay local) and one that needs current information or careful judgment (should escalate) to see both paths.
-4. Inspect the **Final Result** node's output — `source` says which model actually answered, `reason` says why the router decided that.
+1. In n8n, **Workflows → Import from File**, pick `hybrid-local-claude-agent.json`.
+2. Open **Ollama Chat Model**, assign an Ollama API credential (`baseUrl: http://ollama.ollama.svc.cluster.local:11434`, no auth needed).
+3. Open **Ask Claude**, assign an Anthropic API credential (same as v1 — `console.anthropic.com`, not checked into git).
+4. Click **Set Question**, edit the `question` value, then **Execute workflow**. Try one simple factual question (agent should answer directly, no tool call) and one that needs current information or careful judgment (agent should decide on its own to call **Ask Claude**) to see both behaviors.
+5. Inspect the **Final Result** node's `output` field, and check the **AI Agent** node's execution log/sub-run to see whether it actually invoked the tool and what it passed in — that's the agentic decision-making happening, not a hardcoded branch.
 
 ## Backlog #18: Telegram bot
 

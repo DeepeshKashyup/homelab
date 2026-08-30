@@ -1,0 +1,119 @@
+{
+  "name": "Hybrid Local+Claude Agent (backlog #17 v2 -- real agent)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "a2a1a1a1-0000-4000-8000-000000000001",
+      "name": "When clicking Test workflow",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-200, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a2a1a1a1-0000-4000-8000-000000000010",
+              "name": "question",
+              "type": "string",
+              "value": "What is the capital of France?"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a2a1a1a1-0000-4000-8000-000000000002",
+      "name": "Set Question",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [40, 300],
+      "notes": "Edit before running. Unlike v1's hardcoded IF router, the agent itself now decides whether to answer directly or invoke the Ask Claude tool -- try a simple question (should answer itself) and a time-sensitive one (should reach for the tool) to see both."
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.question }}",
+        "options": {
+          "systemMessage": "You are a helpful assistant. Answer directly from your own knowledge whenever you can do so confidently and accurately. Use the Ask Claude tool ONLY when the question needs very recent/current information, deep expert-level reasoning, or something you are genuinely not confident about. Do not use the tool for questions you can already answer well yourself."
+        }
+      },
+      "id": "a2a1a1a1-0000-4000-8000-000000000003",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [280, 300],
+      "notes": "This is the actual agent: the connected Ollama chat model decides for itself, per-request, whether to answer directly or call the Ask Claude tool -- unlike v1's hardcoded IF node. If this node (or the two feeding it below) shows as an unrecognized/red node after import, n8n's LangChain node schemas moved between versions -- delete just that node and re-add it fresh from the node panel (AI -> Agent / Chat Model / Tool), then reconnect; the rest of the workflow is unaffected."
+    },
+    {
+      "parameters": {
+        "model": "qwen2.5:14b",
+        "options": {
+          "baseUrl": "http://ollama.ollama.svc.cluster.local:11434"
+        }
+      },
+      "id": "a2a1a1a1-0000-4000-8000-000000000004",
+      "name": "Ollama Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [220, 520],
+      "notes": "qwen2.5:14b -- one of the 5 models on gpu-node-01 with tool-calling ('tools') capability, required for it to be able to decide to invoke Ask Claude. Needs an Ollama API credential assigned after import: baseUrl http://ollama.ollama.svc.cluster.local:11434, no auth. Remember Ollama needs replicas: 1 and ComfyUI replicas: 0 first (GPU toggle, see ../ollama-openwebui/README.md)."
+    },
+    {
+      "parameters": {
+        "toolDescription": "Ask a much more capable AI model (Claude) for help answering a question. Use this ONLY when you need very recent/current information, deep expert-level reasoning, or you are not confident in your own answer. Input should be the user's exact question as plain text.",
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"claude-sonnet-5\", max_tokens: 1024, messages: [{ role: \"user\", content: $fromAI('question', 'The exact question to ask Claude', 'string') }] }) }}"
+      },
+      "id": "a2a1a1a1-0000-4000-8000-000000000005",
+      "name": "Ask Claude",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [420, 520],
+      "notes": "Needs an Anthropic API credential assigned after import (same as v1's escalation node -- console.anthropic.com, not checked into git). The agent decides on its own whether to call this, with what input, and how to use the response -- that's the actual agentic behavior v1 didn't have."
+    },
+    {
+      "parameters": {},
+      "id": "a2a1a1a1-0000-4000-8000-000000000006",
+      "name": "Final Result",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [560, 300],
+      "notes": "Inspect the `output` field -- the agent's final answer, after however many (zero or more) tool calls it decided to make on its own."
+    }
+  ],
+  "connections": {
+    "When clicking Test workflow": {
+      "main": [[{ "node": "Set Question", "type": "main", "index": 0 }]]
+    },
+    "Set Question": {
+      "main": [[{ "node": "AI Agent", "type": "main", "index": 0 }]]
+    },
+    "AI Agent": {
+      "main": [[{ "node": "Final Result", "type": "main", "index": 0 }]]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [[{ "node": "AI Agent", "type": "ai_languageModel", "index": 0 }]]
+    },
+    "Ask Claude": {
+      "ai_tool": [[{ "node": "AI Agent", "type": "ai_tool", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
