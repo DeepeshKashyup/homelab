@@ -59,11 +59,25 @@ Ollama's internal Service is reachable in-cluster at `http://ollama.ollama.svc.c
 3. Click **Set Question**, edit the `question` value, then **Execute workflow** from the trigger. Try one simple factual question (should stay local) and one that needs current information or careful judgment (should escalate) to see both paths.
 4. Inspect the **Final Result** node's output — `source` says which model actually answered, `reason` says why the router decided that.
 
+## Backlog #18: Telegram bot
+
+n8n's Telegram integration is webhook-only (push), which meant the original "purely outbound polling bot" framing in the backlog description didn't hold once this got built — see [ADR 0019](../../../docs/decisions/0019-telegram-bot-webhook-cloudflare-tunnel.md) for the full story and why a named Cloudflare Tunnel ([`../cloudflared/`](../cloudflared/)) rather than a real port-forward was the answer. `N8N_WEBHOOK_URL` (`02-n8n.yaml`) points at `https://n8n-webhook.deepeshkumar.dev/`, the tunnel's public hostname.
+
+[`workflows/telegram-ollama-bot.json`](workflows/telegram-ollama-bot.json): Telegram Trigger → check the sender's numeric Telegram user ID against Deepesh's own (hard-coded — a bot token alone is not access control, see ADR 0019) → if authorized, call Ollama and reply; if not, silently drop the message with no reply at all.
+
+**Import it:**
+
+1. In n8n, **Workflows → Import from File**, pick this JSON.
+2. Open **Telegram Trigger**, assign a Telegram API credential (the bot token from `@BotFather` — not included in the JSON, never checked into git). Do the same on the **Reply on Telegram** node (same credential).
+3. **Activate** the workflow (top-right toggle) — Telegram Trigger only registers its webhook with Telegram's `setWebhook` API once active, unlike the manual-trigger workflows above.
+4. Message the bot from your own Telegram account — should get a real Ollama-generated reply.
+5. Message the bot from a second account (or ask someone else to), or temporarily change the hard-coded ID to confirm it — should get silence, not a reply, confirming the access-control gate actually works.
+
 ## First-deploy verification checklist
 
 - [x] `kubectl get database,databaserole -n postgres n8n` shows both reconciled successfully (check `kubectl describe` if not — CNPG surfaces role/DB creation errors there). — confirmed 2026-08-29.
 - [x] n8n's first-run wizard completes and the owner account persists across a pod restart (`kubectl rollout restart deployment/n8n -n n8n`) — confirms it's actually reading/writing Postgres, not silently falling back to SQLite. — confirmed 2026-08-29 (30+ migrations ran against the `n8n` database on first boot).
 - [x] In-cluster connectivity to Ollama confirmed (see above).
 - [x] Backlog #17's hybrid workflow imported, an Anthropic credential assigned, and both the local-answer and Claude-escalation paths actually exercised at least once. — confirmed 2026-08-29.
-
-**Known minor follow-up, not blocking:** n8n logged a deprecation warning on startup that `WEBHOOK_URL` (used in `02-n8n.yaml`) should become `N8N_WEBHOOK_URL` in a future n8n version — update the manifest whenever that becomes a hard requirement rather than just a warning.
+- [ ] Backlog #18's Telegram workflow imported, activated, and both the authorized-sender and unauthorized-sender paths actually exercised (a real reply vs. real silence).
+- [ ] `https://n8n-webhook.deepeshkumar.dev/` confirmed reachable from outside the LAN (see [`../cloudflared/README.md`](../cloudflared/README.md)) before expecting Telegram's webhook to actually deliver.
