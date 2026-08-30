@@ -83,6 +83,6 @@ n8n's Telegram integration is webhook-only (push), which meant the original "pur
 - [x] `kubectl get database,databaserole -n postgres n8n` shows both reconciled successfully (check `kubectl describe` if not — CNPG surfaces role/DB creation errors there). — confirmed 2026-08-29.
 - [x] n8n's first-run wizard completes and the owner account persists across a pod restart (`kubectl rollout restart deployment/n8n -n n8n`) — confirms it's actually reading/writing Postgres, not silently falling back to SQLite. — confirmed 2026-08-29 (30+ migrations ran against the `n8n` database on first boot).
 - [x] In-cluster connectivity to Ollama confirmed (see above).
-- [x] Backlog #17's hybrid workflow imported, an Anthropic credential assigned, and both the local-answer and Claude-escalation paths actually exercised at least once. — confirmed 2026-08-29.
-- [ ] Backlog #18's Telegram workflow imported, activated, and both the authorized-sender and unauthorized-sender paths actually exercised (a real reply vs. real silence).
-- [ ] `https://n8n-webhook.deepeshkumar.dev/` confirmed reachable from outside the LAN (see [`../cloudflared/README.md`](../cloudflared/README.md)) before expecting Telegram's webhook to actually deliver.
+- [x] Backlog #17's hybrid workflow imported, an Anthropic credential assigned, and both the local-answer and Claude-escalation paths actually exercised at least once. — confirmed 2026-08-29 (v1); upgraded to a real AI Agent (v2) 2026-08-30, also confirmed working.
+- [x] Backlog #18's Telegram workflow imported, activated, and exercised — confirmed 2026-08-30 (real reply received via the public webhook from Deepesh's own Telegram account).
+- [x] `https://n8n-webhook.deepeshkumar.dev/` confirmed reachable from outside the LAN (see [`../cloudflared/README.md`](../cloudflared/README.md)) — confirmed 2026-08-30.

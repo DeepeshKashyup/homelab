@@ -47,9 +47,7 @@ A successful `/healthz` returning n8n's `{"status":"ok"}` from outside the home 
 
 ## First-deploy verification checklist
 
-- [ ] `cloudflared` pod `Running`, logs show a registered tunnel connection with no errors.
-- [ ] `https://n8n-webhook.deepeshkumar.dev/healthz` reachable from outside the LAN (test from a phone on cellular data, not home Wi-Fi).
-- [ ] `N8N_WEBHOOK_URL` in `infra/k8s/base/n8n/02-n8n.yaml` updated to `https://n8n-webhook.deepeshkumar.dev/` so n8n registers the correct externally-reachable URL with Telegram's `setWebhook`.
-- [ ] Telegram's webhook actually delivers a message to n8n end to end (see `infra/k8s/base/n8n/README.md`'s Telegram section once that workflow exists).
-
-Update this README once verified.
+- [x] `cloudflared` pod `Running`, logs show a registered tunnel connection with no errors. — confirmed 2026-08-30 (4 QUIC connections registered across Cloudflare edge locations).
+- [x] `https://n8n-webhook.deepeshkumar.dev/healthz` reachable from outside the LAN. — confirmed 2026-08-30.
+- [x] `N8N_WEBHOOK_URL` in `infra/k8s/base/n8n/02-n8n.yaml` updated to `https://n8n-webhook.deepeshkumar.dev/` so n8n registers the correct externally-reachable URL with Telegram's `setWebhook`. — confirmed 2026-08-30.
+- [x] Telegram's webhook actually delivers a message to n8n end to end. — confirmed 2026-08-30 (real reply received via `workflows/telegram-ollama-bot.json`, see `infra/k8s/base/n8n/README.md`).
