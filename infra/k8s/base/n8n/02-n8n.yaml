@@ -14,9 +14,17 @@
 #   out of band (not checked in) — see this directory's README for the
 #   exact commands. Losing the encryption key makes every stored credential
 #   in n8n's workflows undecryptable, so back up whatever generates it.
-# - WEBHOOK_URL is set to the NodePort address so webhook nodes (e.g. a
+# - N8N_WEBHOOK_URL is set to the NodePort address so webhook nodes (e.g. a
 #   future Telegram bot integration, backlog #18) generate URLs that
-#   actually resolve from outside the pod network.
+#   actually resolve from outside the pod network. (Was WEBHOOK_URL --
+#   n8n logged a deprecation warning on first boot that this env var is
+#   being renamed; switched here rather than waiting for it to break.)
+# - N8N_SECURE_COOKIE=false: n8n defaults to a secure (HTTPS-only) auth
+#   cookie, which silently fails the setup wizard over plain HTTP on a LAN
+#   IP ("Your n8n server is configured to use a secure cookie... you are
+#   visiting via an insecure URL"). Same NodePort-over-HTTP tradeoff as
+#   every other app in this repo (Open WebUI, Plex) pending real TLS via
+#   the NodePort->Ingress migration (ADR 0009 follow-up, backlog #6).
 # - n8n-data PVC covers local state (binary data cache, etc.) that isn't in
 #   Postgres; the workflow/credential/execution data itself lives in the
 #   n8n database.
@@ -74,8 +82,10 @@ spec:
               value: "5678"
             - name: N8N_PROTOCOL
               value: "http"
-            - name: WEBHOOK_URL
+            - name: N8N_WEBHOOK_URL
               value: "http://192.168.0.47:30678/"
+            - name: N8N_SECURE_COOKIE
+              value: "false"
             - name: DB_TYPE
               value: "postgresdb"
             - name: DB_POSTGRESDB_HOST
