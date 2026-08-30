@@ -1,6 +1,6 @@
 # n8n/
 
-Workflow automation, in the `n8n` namespace, pinned to `control-plane-01` (no GPU needed, same reasoning as Open WebUI/Postgres/Plex). First real consumer of the shared Postgres cluster ([`infra/k8s/base/postgres/`](../postgres/)) beyond its own bootstrap database. Backlog #16 — #17 (a hybrid local Ollama + Claude reasoning workflow) and #18 (a Telegram bot) build on this once it's up.
+Workflow automation, in the `n8n` namespace, pinned to `control-plane-01` (no GPU needed, same reasoning as Open WebUI/Postgres/Plex). First real consumer of the shared Postgres cluster ([`infra/k8s/base/postgres/`](../postgres/)) beyond its own bootstrap database. Backlog #16 — **done and verified 2026-08-29**: migrations ran clean against the dedicated `n8n` Postgres database, UI/`/healthz` reachable at `http://192.168.0.47:30678`, and the pod confirmed reaching Ollama's internal Service directly. #17 (a hybrid local Ollama + Claude reasoning workflow, see below) and #18 (a Telegram bot) build on this.
 
 ## Apply
 
@@ -46,12 +46,24 @@ From a browser on the LAN, go to `http://192.168.0.47:30678`. n8n's first-run wi
 
 ## Connecting to Ollama
 
-Ollama's internal Service is reachable in-cluster at `http://ollama.ollama.svc.cluster.local:11434` — no NodePort hop needed since both run in the same k3s cluster. In n8n, an **HTTP Request** node (or the community Ollama node, if installed) pointed at that URL is enough for backlog #17's hybrid local-model + Claude workflow. Remember Ollama needs to actually be scaled up (`replicas: 1`) and ComfyUI scaled down first — see [`../ollama-openwebui/README.md`](../ollama-openwebui/) for the toggle, since both still contend for `gpu-node-01`'s single GPU.
+Ollama's internal Service is reachable in-cluster at `http://ollama.ollama.svc.cluster.local:11434` — no NodePort hop needed since both run in the same k3s cluster. Confirmed working via `kubectl exec -n n8n deploy/n8n -- wget -qO- http://ollama.ollama.svc.cluster.local:11434/api/tags`, which returned all 5 loaded models. Remember Ollama needs to actually be scaled up (`replicas: 1`) and ComfyUI scaled down first — see [`../ollama-openwebui/README.md`](../ollama-openwebui/) for the toggle, since both still contend for `gpu-node-01`'s single GPU.
+
+## Backlog #17: hybrid local + Claude triage workflow
+
+[`workflows/hybrid-local-claude-triage.json`](workflows/hybrid-local-claude-triage.json) is a small router workflow validating the hybrid-reasoning pattern: a cheap local model (`gemma3:4b` via Ollama) triages each question first and answers directly if it's confident; anything it flags as uncertain escalates to the Claude API for the real answer. Plain **HTTP Request** nodes are used throughout rather than n8n's bundled LangChain/AI-Agent nodes — those node types move fast across n8n versions and are riskier to hand-author blind outside the UI.
+
+**Import it:**
+
+1. In n8n, **Workflows → Import from File**, pick this JSON.
+2. Open the **Ask Claude (Escalation)** node and assign an Anthropic API credential (create one under **Credentials** with an API key from `console.anthropic.com` — not included in the JSON, never checked into git).
+3. Click **Set Question**, edit the `question` value, then **Execute workflow** from the trigger. Try one simple factual question (should stay local) and one that needs current information or careful judgment (should escalate) to see both paths.
+4. Inspect the **Final Result** node's output — `source` says which model actually answered, `reason` says why the router decided that.
 
 ## First-deploy verification checklist
 
-- `kubectl get database,databaserole -n postgres n8n` shows both reconciled successfully (check `kubectl describe` if not — CNPG surfaces role/DB creation errors there).
-- n8n's first-run wizard completes and the owner account persists across a pod restart (`kubectl rollout restart deployment/n8n -n n8n`) — confirms it's actually reading/writing Postgres, not silently falling back to SQLite.
-- A test workflow with an HTTP Request node to `http://ollama.ollama.svc.cluster.local:11434/api/tags` returns n8n's model list — confirms in-cluster connectivity to Ollama.
+- [x] `kubectl get database,databaserole -n postgres n8n` shows both reconciled successfully (check `kubectl describe` if not — CNPG surfaces role/DB creation errors there). — confirmed 2026-08-29.
+- [x] n8n's first-run wizard completes and the owner account persists across a pod restart (`kubectl rollout restart deployment/n8n -n n8n`) — confirms it's actually reading/writing Postgres, not silently falling back to SQLite. — confirmed 2026-08-29 (30+ migrations ran against the `n8n` database on first boot).
+- [x] In-cluster connectivity to Ollama confirmed (see above).
+- [ ] Backlog #17's hybrid workflow imported, an Anthropic credential assigned, and both the local-answer and Claude-escalation paths actually exercised at least once.
 
-Update this README once verified — note here if the CNPG `DatabaseRole`/`Database` CRDs needed different fields (they're a newer, actively-evolving part of the operator).
+**Known minor follow-up, not blocking:** n8n logged a deprecation warning on startup that `WEBHOOK_URL` (used in `02-n8n.yaml`) should become `N8N_WEBHOOK_URL` in a future n8n version — update the manifest whenever that becomes a hard requirement rather than just a warning.

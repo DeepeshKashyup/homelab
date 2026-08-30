@@ -1,0 +1,234 @@
+{
+  "name": "Hybrid Local+Claude Triage (backlog #17)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "b1a1a1a1-0000-4000-8000-000000000001",
+      "name": "When clicking Test workflow",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-120, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c1a1a1a1-0000-4000-8000-000000000010",
+              "name": "question",
+              "type": "string",
+              "value": "What is the capital of France?"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b1a1a1a1-0000-4000-8000-000000000002",
+      "name": "Set Question",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [120, 300],
+      "notes": "Edit the `question` value here before running to test both paths -- a simple factual question should stay local; a question needing current events, nuanced judgment, or something the local model is unsure of should escalate to Claude."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama.ollama.svc.cluster.local:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"gemma3:4b\", format: \"json\", stream: false, prompt: \"You are a triage assistant. Decide whether you can answer the user's question fully, accurately, and confidently using only your own general knowledge -- with no real risk of being outdated, ambiguous, or wrong. If you have any real doubt, say you are not confident so a stronger model can take over. Respond with ONLY compact JSON in exactly this shape, no other text: {\\\"confident\\\": true or false, \\\"answer\\\": \\\"your answer if confident, else empty string\\\", \\\"reason\\\": \\\"one short sentence on why\\\"}. Question: \" + $json.question }) }}",
+        "options": {}
+      },
+      "id": "b1a1a1a1-0000-4000-8000-000000000003",
+      "name": "Ask Local Model (Ollama Triage)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [360, 300],
+      "notes": "gemma3:4b acting as a cheap/fast triage step -- swap the model name for whichever of the 5 loaded Ollama models you want as the local first-pass (see the ollama-openwebui README for what's available)."
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.response;\nlet parsed;\ntry {\n  parsed = JSON.parse(raw);\n} catch (e) {\n  // Local model didn't return valid JSON -- fail safe by escalating rather than silently dropping the question.\n  parsed = { confident: false, answer: '', reason: 'local model returned unparseable output, escalating to be safe' };\n}\nreturn [{\n  json: {\n    question: $('Set Question').first().json.question,\n    confident: parsed.confident === true,\n    localAnswer: parsed.answer || '',\n    reason: parsed.reason || ''\n  }\n}];"
+      },
+      "id": "b1a1a1a1-0000-4000-8000-000000000004",
+      "name": "Parse Triage Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "d1a1a1a1-0000-4000-8000-000000000020",
+              "leftValue": "={{ $json.confident }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b1a1a1a1-0000-4000-8000-000000000005",
+      "name": "Confident Enough?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [840, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1a1a1a1-0000-4000-8000-000000000030",
+              "name": "source",
+              "type": "string",
+              "value": "local (Ollama, gemma3:4b)"
+            },
+            {
+              "id": "e1a1a1a1-0000-4000-8000-000000000031",
+              "name": "answer",
+              "type": "string",
+              "value": "={{ $json.localAnswer }}"
+            },
+            {
+              "id": "e1a1a1a1-0000-4000-8000-000000000032",
+              "name": "reason",
+              "type": "string",
+              "value": "={{ $json.reason }}"
+            },
+            {
+              "id": "e1a1a1a1-0000-4000-8000-000000000033",
+              "name": "question",
+              "type": "string",
+              "value": "={{ $json.question }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b1a1a1a1-0000-4000-8000-000000000006",
+      "name": "Use Local Answer",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1080, 180]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "anthropicApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"claude-sonnet-5\", max_tokens: 1024, messages: [{ role: \"user\", content: $json.question }] }) }}",
+        "options": {}
+      },
+      "id": "b1a1a1a1-0000-4000-8000-000000000007",
+      "name": "Ask Claude (Escalation)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1080, 420],
+      "notes": "Needs an Anthropic API credential assigned after import -- create one under Credentials using an API key from console.anthropic.com. Not set here; never checked into git."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e1a1a1a1-0000-4000-8000-000000000040",
+              "name": "source",
+              "type": "string",
+              "value": "claude (escalated, claude-sonnet-5)"
+            },
+            {
+              "id": "e1a1a1a1-0000-4000-8000-000000000041",
+              "name": "answer",
+              "type": "string",
+              "value": "={{ $json.content[0].text }}"
+            },
+            {
+              "id": "e1a1a1a1-0000-4000-8000-000000000042",
+              "name": "reason",
+              "type": "string",
+              "value": "={{ $('Parse Triage Result').item.json.reason }}"
+            },
+            {
+              "id": "e1a1a1a1-0000-4000-8000-000000000043",
+              "name": "question",
+              "type": "string",
+              "value": "={{ $('Parse Triage Result').item.json.question }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b1a1a1a1-0000-4000-8000-000000000008",
+      "name": "Format Claude Answer",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1320, 420]
+    },
+    {
+      "parameters": {},
+      "id": "b1a1a1a1-0000-4000-8000-000000000009",
+      "name": "Final Result",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1560, 300],
+      "notes": "Converges both paths -- inspect `source` here to see whether the answer came from Ollama or Claude, and `reason` for why the router decided that."
+    }
+  ],
+  "connections": {
+    "When clicking Test workflow": {
+      "main": [[{ "node": "Set Question", "type": "main", "index": 0 }]]
+    },
+    "Set Question": {
+      "main": [[{ "node": "Ask Local Model (Ollama Triage)", "type": "main", "index": 0 }]]
+    },
+    "Ask Local Model (Ollama Triage)": {
+      "main": [[{ "node": "Parse Triage Result", "type": "main", "index": 0 }]]
+    },
+    "Parse Triage Result": {
+      "main": [[{ "node": "Confident Enough?", "type": "main", "index": 0 }]]
+    },
+    "Confident Enough?": {
+      "main": [
+        [{ "node": "Use Local Answer", "type": "main", "index": 0 }],
+        [{ "node": "Ask Claude (Escalation)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Use Local Answer": {
+      "main": [[{ "node": "Final Result", "type": "main", "index": 0 }]]
+    },
+    "Ask Claude (Escalation)": {
+      "main": [[{ "node": "Format Claude Answer", "type": "main", "index": 0 }]]
+    },
+    "Format Claude Answer": {
+      "main": [[{ "node": "Final Result", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
