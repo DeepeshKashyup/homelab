@@ -1,0 +1,46 @@
+# Grafana's own database + role on the shared Postgres cluster (infra/k8s/
+# base/postgres/), same pattern as n8n's and Open WebUI's. Applied
+# separately from the kube-prometheus-stack Helm chart (this is a plain
+# manifest, not part of values.yaml) -- apply before the Helm
+# install/upgrade that references it.
+#
+# Migrated 2026-08-30 from Grafana's default embedded SQLite (on the 2Gi
+# local-path PVC in values.yaml) -- deliberately a fresh start, not a data
+# migration. Grafana does not auto-migrate existing SQLite data (users,
+# manually-created dashboards/folders/alerts) into a newly-connected
+# Postgres database; the ConfigMap-provisioned gpu-node-correlation
+# dashboard is unaffected either way since it's declarative, not DB state.
+#
+# passwordSecret references a Secret NOT checked in here -- create it once,
+# out of band, before applying this file (see this directory's README):
+#
+#   PASS=$(openssl rand -hex 24)
+#   kubectl create secret generic grafana-db-owner -n postgres \
+#     --type=kubernetes.io/basic-auth \
+#     --from-literal=username=grafana --from-literal=password="$PASS"
+#   kubectl create secret generic grafana-db-credentials -n monitoring \
+#     --from-literal=username=grafana --from-literal=password="$PASS"
+
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: grafana
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: grafana
+  login: true
+  passwordSecret:
+    name: grafana-db-owner
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: grafana
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: grafana
+  owner: grafana

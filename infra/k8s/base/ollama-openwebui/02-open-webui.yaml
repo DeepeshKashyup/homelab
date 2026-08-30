@@ -8,6 +8,16 @@
 # - WEBUI_AUTH stays at its default (enabled) since this is reachable by
 #   anything on the LAN via NodePort — first user to sign up becomes admin.
 # - Exposed via NodePort per ADR 0009 (interim, pre-Ingress).
+# - DATABASE_URL points at the shared Postgres cluster (see
+#   03-postgres-role-db.yaml) instead of Open WebUI's default embedded
+#   SQLite -- migrated 2026-08-30 as a deliberate fresh start (Open WebUI
+#   doesn't auto-migrate old SQLite data into a newly-connected Postgres
+#   DB), so this folds chat/user data into the same weekly pg_dumpall
+#   backup coverage Postgres already gets, instead of an unbacked-up PVC.
+#   Username/password come from openwebui-db-credentials (Secret, created
+#   out of band -- see this directory's README), interpolated into the
+#   connection string via Kubernetes' $(VAR) env substitution rather than
+#   one Secret key holding the whole URL.
 
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -49,6 +59,18 @@ spec:
           env:
             - name: OLLAMA_BASE_URL
               value: http://ollama.ollama.svc.cluster.local:11434
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-db-credentials
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: openwebui-db-credentials
+                  key: password
+            - name: DATABASE_URL
+              value: "postgresql://$(DB_USER):$(DB_PASSWORD)@postgres-rw.postgres.svc.cluster.local:5432/openwebui"
           volumeMounts:
             - name: data
               mountPath: /app/backend/data

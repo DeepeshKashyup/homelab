@@ -1,0 +1,47 @@
+# Open WebUI's own database + role on the shared Postgres cluster (infra/k8s/
+# base/postgres/), same pattern as n8n's (infra/k8s/base/n8n/01-postgres-role-db.yaml).
+#
+# Migrated 2026-08-30 from Open WebUI's default embedded SQLite (on a PVC
+# with no backup coverage -- only Postgres gets the weekly pg_dumpall) --
+# deliberately a fresh start, not a data migration. Open WebUI does not
+# auto-migrate existing SQLite data into a newly-connected Postgres
+# database, so prior chat history/settings on the old SQLite PVC do not
+# carry over. Accepted knowingly, not an oversight.
+#
+# passwordSecret references a Secret NOT checked in here -- create it once,
+# out of band, before applying this file (see this directory's README):
+#
+#   PASS=$(openssl rand -hex 24)
+#   kubectl create secret generic openwebui-db-owner -n postgres \
+#     --type=kubernetes.io/basic-auth \
+#     --from-literal=username=openwebui --from-literal=password="$PASS"
+#   kubectl create secret generic openwebui-db-credentials -n ollama \
+#     --from-literal=username=openwebui --from-literal=password="$PASS"
+#
+# (hex, not base64, deliberately -- avoids URL-encoding special characters
+# when the password is interpolated directly into a DATABASE_URL connection
+# string in 02-open-webui.yaml, unlike n8n's discrete DB_POSTGRESDB_* fields.)
+
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: openwebui
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: openwebui
+  login: true
+  passwordSecret:
+    name: openwebui-db-owner
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: openwebui
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: openwebui
+  owner: openwebui

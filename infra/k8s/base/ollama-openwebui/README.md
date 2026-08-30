@@ -4,10 +4,24 @@ Ollama (GPU-scheduled model server, `gpu-node-01`) + Open WebUI (browser UI, `co
 
 ## Apply
 
+Open WebUI's database Secrets need to exist **before** applying `02-open-webui.yaml` (added 2026-08-30 — see `02-open-webui.yaml` and `03-postgres-role-db.yaml` for why it's on the shared Postgres cluster rather than its default embedded SQLite):
+
 ```bash
-sudo k3s kubectl apply -f infra/k8s/base/ollama-openwebui/00-namespace.yaml
-sudo k3s kubectl apply -f infra/k8s/base/ollama-openwebui/01-ollama.yaml
-sudo k3s kubectl apply -f infra/k8s/base/ollama-openwebui/02-open-webui.yaml
+PASS=$(openssl rand -hex 24)
+kubectl create secret generic openwebui-db-owner -n postgres \
+  --type=kubernetes.io/basic-auth \
+  --from-literal=username=openwebui --from-literal=password="$PASS"
+kubectl create secret generic openwebui-db-credentials -n ollama \
+  --from-literal=username=openwebui --from-literal=password="$PASS"
+```
+
+Then:
+
+```bash
+kubectl apply -f infra/k8s/base/ollama-openwebui/00-namespace.yaml
+kubectl apply -f infra/k8s/base/ollama-openwebui/01-ollama.yaml
+kubectl apply -f infra/k8s/base/ollama-openwebui/03-postgres-role-db.yaml
+kubectl apply -f infra/k8s/base/ollama-openwebui/02-open-webui.yaml
 ```
 
 ## Access from the LAN (e.g. the Dell G5)
@@ -38,3 +52,9 @@ Should show the RTX 5060 Ti; check GPU-Util climbs during an actual generation r
 Prompting a model that lacks tool/function-calling support (e.g. `gemma3:4b` — check a model's `capabilities` in `ollama list`/`/api/tags`; `["completion"]` means no tools) fails with `HTTP 400 ... does not support tools`, even with nothing obviously "tool"-related enabled in the chat. Cause: Open WebUI's per-model **Function Calling** setting defaults to (or gets set to) **Native**, which attaches a tools schema to every request for that model regardless of whether a tool is actually toggled on.
 
 Fix: Admin Panel → Settings → Models (or Workspace → Models, depending on version) → select the model → set **Function Calling** to **Default** instead of **Native**. Models that do support tools (e.g. `llama3.1:8b`, `qwen2.5:14b`) aren't affected either way.
+
+## Postgres migration verification checklist (2026-08-30)
+
+- [ ] `kubectl get database,databaserole -n postgres openwebui` shows both reconciled successfully.
+- [ ] Open WebUI's first-run signup works again (expected — this was a deliberate fresh start, not a data migration; old chat history stays on the previous SQLite PVC, unused going forward).
+- [ ] `kubectl exec -n postgres postgres-1 -- psql -U openwebui -d openwebui -c '\dt'` shows Open WebUI's own tables, confirming it's actually writing to Postgres and not silently falling back to SQLite.

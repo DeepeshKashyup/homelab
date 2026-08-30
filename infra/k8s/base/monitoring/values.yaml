@@ -26,6 +26,29 @@ grafana:
   # adminPassword intentionally NOT set here -- this repo is public on GitHub.
   # Chart auto-generates one into the `prometheus-grafana` Secret; retrieve with:
   #   kubectl get secret prometheus-grafana -n monitoring -o jsonpath="{.data.admin-password}" | base64 -d
+  # Independent of the database backend below -- still the bootstrap admin
+  # login either way.
+  #
+  # Database backend: shared Postgres cluster (infra/k8s/base/postgres/,
+  # 00-postgres-role-db.yaml in this directory) instead of the default
+  # embedded SQLite on the persistence PVC above -- migrated 2026-08-30 as
+  # a deliberate fresh start, not a data migration (see 00-postgres-role-db.yaml).
+  # GF_DATABASE_SSL_MODE: disable -- same as n8n's Postgres connection,
+  # CNPG doesn't enforce TLS for in-cluster connections in this setup.
+  env:
+    GF_DATABASE_TYPE: postgres
+    GF_DATABASE_HOST: postgres-rw.postgres.svc.cluster.local:5432
+    GF_DATABASE_NAME: grafana
+    GF_DATABASE_SSL_MODE: disable
+  envValueFrom:
+    GF_DATABASE_USER:
+      secretKeyRef:
+        name: grafana-db-credentials
+        key: username
+    GF_DATABASE_PASSWORD:
+      secretKeyRef:
+        name: grafana-db-credentials
+        key: password
 
 prometheus:
   prometheusSpec:

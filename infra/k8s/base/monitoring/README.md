@@ -15,6 +15,21 @@ This is the bigger addition `infra/gpu-node-01/gpu-temp-exporter/README.md` flag
 
 Prerequisite: Helm on `control-plane-01` — `cd ~/homelab && git pull && bash infra/bootstrap/install-helm.sh`.
 
+Grafana's database Secrets need to exist **before** the Helm install/upgrade (added 2026-08-30 — see `00-postgres-role-db.yaml` and `values.yaml`'s `grafana.env`/`envValueFrom` for why it's on the shared Postgres cluster rather than its default embedded SQLite):
+
+```bash
+kubectl create namespace monitoring   # if it doesn't exist yet -- Database/DatabaseRole apply needs the target namespace to exist for the credentials Secret, even before the Helm install itself creates it
+PASS=$(openssl rand -hex 24)
+kubectl create secret generic grafana-db-owner -n postgres \
+  --type=kubernetes.io/basic-auth \
+  --from-literal=username=grafana --from-literal=password="$PASS"
+kubectl create secret generic grafana-db-credentials -n monitoring \
+  --from-literal=username=grafana --from-literal=password="$PASS"
+kubectl apply -f infra/k8s/base/monitoring/00-postgres-role-db.yaml
+```
+
+Then:
+
 ```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
@@ -23,7 +38,16 @@ helm install prometheus prometheus-community/kube-prometheus-stack \
   -f infra/k8s/base/monitoring/values.yaml
 ```
 
+(Already installed? `helm upgrade prometheus prometheus-community/kube-prometheus-stack -n monitoring -f infra/k8s/base/monitoring/values.yaml` picks up the database change — Grafana's pod restarts fresh against Postgres, existing SQLite-only state does not carry over, see `00-postgres-role-db.yaml`.)
+
 Then deploy the GPU exporter on `gpu-node-01` per `infra/gpu-node-01/nvidia-gpu-exporter/README.md`.
+
+## Postgres migration verification checklist (2026-08-30)
+
+- [ ] `kubectl get database,databaserole -n postgres grafana` shows both reconciled successfully.
+- [ ] Grafana pod restarts cleanly after the `helm upgrade`, `/api/health` (or just loading the UI) works.
+- [ ] The `gpu-node-correlation` ConfigMap-provisioned dashboard still shows up (confirms provisioned dashboards are unaffected by the DB backend change).
+- [ ] `kubectl exec -n postgres postgres-1 -- psql -U grafana -d grafana -c '\dt'` shows Grafana's own tables, confirming it's actually writing to Postgres and not silently falling back to SQLite.
 
 ## Access Grafana
 
