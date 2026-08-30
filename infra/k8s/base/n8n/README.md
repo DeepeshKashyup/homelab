@@ -64,6 +64,6 @@ Ollama's internal Service is reachable in-cluster at `http://ollama.ollama.svc.c
 - [x] `kubectl get database,databaserole -n postgres n8n` shows both reconciled successfully (check `kubectl describe` if not — CNPG surfaces role/DB creation errors there). — confirmed 2026-08-29.
 - [x] n8n's first-run wizard completes and the owner account persists across a pod restart (`kubectl rollout restart deployment/n8n -n n8n`) — confirms it's actually reading/writing Postgres, not silently falling back to SQLite. — confirmed 2026-08-29 (30+ migrations ran against the `n8n` database on first boot).
 - [x] In-cluster connectivity to Ollama confirmed (see above).
-- [ ] Backlog #17's hybrid workflow imported, an Anthropic credential assigned, and both the local-answer and Claude-escalation paths actually exercised at least once.
+- [x] Backlog #17's hybrid workflow imported, an Anthropic credential assigned, and both the local-answer and Claude-escalation paths actually exercised at least once. — confirmed 2026-08-29.
 
 **Known minor follow-up, not blocking:** n8n logged a deprecation warning on startup that `WEBHOOK_URL` (used in `02-n8n.yaml`) should become `N8N_WEBHOOK_URL` in a future n8n version — update the manifest whenever that becomes a hard requirement rather than just a warning.
