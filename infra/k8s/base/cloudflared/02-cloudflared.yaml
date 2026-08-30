@@ -1,0 +1,70 @@
+# cloudflared: outbound-only tunnel connecting Cloudflare's edge to n8n's
+# internal Service, so Telegram's webhook (backlog #18) can reach n8n
+# without any inbound port-forward, DDNS, or TLS cert on the home network.
+# See ADR 0019 for the full reasoning, including why this is NOT a repeat
+# of ADR 0012's incident (a deliberate named tunnel under Deepesh's own
+# Cloudflare account, scoped to one hostname -> one internal Service, vs.
+# that incident's auto-generated quick tunnel with a default password).
+#
+# - No Service/NodePort needed at all -- unlike every other app in this
+#   repo, cloudflared only makes OUTBOUND connections (to Cloudflare's
+#   edge); nothing needs to reach it directly inside the cluster.
+# - nodeSelector pins it to control-plane-01, same reasoning as the other
+#   non-GPU apps -- no GPU needed, keeps it off gpu-node-01's single
+#   manually-toggled GPU.
+# - cloudflared-credentials Secret is created out of band (not checked in)
+#   -- see this directory's README. Losing/leaking it lets someone else
+#   run a tunnel claiming to be this one; revoke via `cloudflared tunnel
+#   delete` if that ever happens.
+# - replicas: 1 for now, matching the "start small" philosophy -- cloudflared
+#   supports multiple replicas on the same tunnel for HA/load-balancing if
+#   this ever needs to survive a pod restart with zero webhook downtime.
+# - resources.limits.memory set from day one per ADR 0018's lesson; cloudflared
+#   itself is lightweight, headroom here is generous, not a tight measured
+#   number.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared
+  namespace: cloudflared
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloudflared
+  template:
+    metadata:
+      labels:
+        app: cloudflared
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: control-plane-01
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:latest
+          args:
+            - tunnel
+            - --config
+            - /etc/cloudflared/config/config.yaml
+            - run
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/cloudflared/config
+            - name: creds
+              mountPath: /etc/cloudflared/creds
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: cloudflared-config
+        - name: creds
+          secret:
+            secretName: cloudflared-credentials

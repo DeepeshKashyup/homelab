@@ -14,11 +14,15 @@
 #   out of band (not checked in) — see this directory's README for the
 #   exact commands. Losing the encryption key makes every stored credential
 #   in n8n's workflows undecryptable, so back up whatever generates it.
-# - N8N_WEBHOOK_URL is set to the NodePort address so webhook nodes (e.g. a
-#   future Telegram bot integration, backlog #18) generate URLs that
-#   actually resolve from outside the pod network. (Was WEBHOOK_URL --
-#   n8n logged a deprecation warning on first boot that this env var is
-#   being renamed; switched here rather than waiting for it to break.)
+# - N8N_WEBHOOK_URL is set to the public Cloudflare Tunnel hostname (ADR
+#   0019, infra/k8s/base/cloudflared/) rather than the NodePort address, so
+#   webhook nodes (the Telegram Trigger, backlog #18) register a URL
+#   Telegram's servers can actually reach from the public internet. The
+#   NodePort address (http://192.168.0.47:30678/) still works fine for LAN
+#   admin access to the editor UI -- N8N_HOST/N8N_PORT/N8N_PROTOCOL below
+#   are unchanged and only affect that. (Was WEBHOOK_URL -- n8n logged a
+#   deprecation warning on first boot that this env var is being renamed,
+#   switched here rather than waiting for it to break.)
 # - N8N_SECURE_COOKIE=false: n8n defaults to a secure (HTTPS-only) auth
 #   cookie, which silently fails the setup wizard over plain HTTP on a LAN
 #   IP ("Your n8n server is configured to use a secure cookie... you are
@@ -83,7 +87,7 @@ spec:
             - name: N8N_PROTOCOL
               value: "http"
             - name: N8N_WEBHOOK_URL
-              value: "http://192.168.0.47:30678/"
+              value: "https://n8n-webhook.deepeshkumar.dev/"
             - name: N8N_SECURE_COOKIE
               value: "false"
             - name: DB_TYPE

@@ -1,0 +1,25 @@
+# cloudflared's ingress config -- see ADR 0019 for why this exists (a named
+# Cloudflare Tunnel, not a real port-forward, so Telegram's webhook can reach
+# n8n without any inbound exposure on the home network).
+#
+# The tunnel ID here is NOT a secret (it's just an identifier, like a
+# resource name) -- safe to commit. The actual credential is
+# cloudflared-credentials, a Secret created out of band (see this
+# directory's README), never checked in.
+#
+# ingress rules are evaluated top-to-bottom, first match wins; the final
+# catch-all is required by cloudflared or it refuses to start.
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudflared-config
+  namespace: cloudflared
+data:
+  config.yaml: |
+    tunnel: cd63fb99-8337-4c32-8f69-95ec8a3c3f00
+    credentials-file: /etc/cloudflared/creds/credentials.json
+    ingress:
+      - hostname: n8n-webhook.deepeshkumar.dev
+        service: http://n8n.n8n.svc.cluster.local:5678
+      - service: http_status:404
