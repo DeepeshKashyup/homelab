@@ -28,11 +28,27 @@
 # - memory request/limit: see ADR 0018. A dual-14B Wan2.2 generation drove
 #   this pod's host RAM (not VRAM — a separate, unbounded thing ComfyUI's
 #   dynamic CPU-offload staging can consume) to ~45-48GB with no limit set,
-#   exceeding gpu-node-01's 30GB RAM + 8GB swap and hard-crashing the whole
-#   node (not just this pod). The limit below makes that fail as a
+#   exceeding gpu-node-01's original 30GB RAM + 8GB swap and hard-crashing
+#   the whole node (not just this pod). The limit below makes that fail as a
 #   contained, visible pod OOM-kill/restart instead — it does NOT make that
 #   specific dual-14B workflow succeed on this node's RAM; see ADR 0018's
 #   follow-ups for what actually would.
+#   2026-08-29: gpu-node-01 upgraded to 48GB RAM (see the 48GB-upgrade
+#   commit) and the limit raised 30Gi -> 40Gi to use that headroom (~5GB
+#   left for host OS + other pods on a 45Gi-usable node). Also switched the
+#   dual-14B i2v workflow itself to the Q4_K_M GGUF quantized diffusion
+#   models (~9.7GB each vs ~14.3GB fp8_scaled) via the newly-installed
+#   ComfyUI-GGUF custom node, cutting weight footprint further so the two
+#   fixes together should clear the ~45-48GB peak with margin. If it still
+#   OOMs, ADR 0018's follow-ups cover further options (e.g. GGUF-quantizing
+#   the text encoder too, or trimming CPU-offload staging).
+# - custom_nodes is now on its own PVC (comfyui-custom-nodes), not baked
+#   into the image or left on the container's ephemeral writable layer —
+#   found the hard way: a custom node installed via `kubectl exec ... git
+#   clone` into a running pod vanishes on the next restart (any restart,
+#   not just an image change) because only models/ and output/ were ever
+#   persistent. ComfyUI-GGUF is installed here now specifically so it
+#   survives future restarts/reboots without a manual reinstall.
 
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -59,6 +75,19 @@ spec:
   resources:
     requests:
       storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: comfyui-custom-nodes
+  namespace: comfyui
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 5Gi
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -92,12 +121,14 @@ spec:
               memory: 8Gi
             limits:
               nvidia.com/gpu: 1
-              memory: 30Gi
+              memory: 40Gi
           volumeMounts:
             - name: models
               mountPath: /root/ComfyUI/models
             - name: output
               mountPath: /root/ComfyUI/output
+            - name: custom-nodes
+              mountPath: /root/ComfyUI/custom_nodes
       volumes:
         - name: models
           persistentVolumeClaim:
@@ -105,6 +136,9 @@ spec:
         - name: output
           persistentVolumeClaim:
             claimName: comfyui-output
+        - name: custom-nodes
+          persistentVolumeClaim:
+            claimName: comfyui-custom-nodes
 ---
 apiVersion: v1
 kind: Service
