@@ -66,7 +66,7 @@ metadata:
   name: comfyui
   namespace: comfyui
 spec:
-  replicas: 0 # see note above — scale up manually, and scale ollama down first
+  replicas: 1 # scaled up for image-to-video testing with 48GB RAM
   strategy:
     type: Recreate # local-path PVCs are ReadWriteOnce; avoid two pods fighting over them
   selector:
@@ -92,7 +92,7 @@ spec:
               memory: 8Gi
             limits:
               nvidia.com/gpu: 1
-              memory: 24Gi
+              memory: 30Gi
           volumeMounts:
             - name: models
               mountPath: /root/ComfyUI/models

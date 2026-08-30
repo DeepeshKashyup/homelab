@@ -32,7 +32,7 @@ metadata:
   name: ollama
   namespace: ollama
 spec:
-  replicas: 1
+  replicas: 0
   strategy:
     type: Recreate # local-path PVC is ReadWriteOnce; avoid two pods fighting over it
   selector:
