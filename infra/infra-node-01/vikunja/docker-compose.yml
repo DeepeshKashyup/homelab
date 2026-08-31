@@ -4,15 +4,34 @@
 # (ADR follow-ups, on-the-horizon items, incidents to revisit). Runs on
 # infra-node-01, not the k3s cluster — deliberately independent of the
 # thing it's used to track work for, same reasoning as AdGuard Home
-# (see docs/decisions/0013). Single container, SQLite — no separate
-# database service needed.
+# (see docs/decisions/0013).
+#
+# Database: migrated from local SQLite to the shared Postgres cluster
+# 2026-08-31 -- see ADR 0021 for the full reasoning, including the real
+# tradeoff accepted (Vikunja is no longer usable during a control-plane-01/
+# k3s/Postgres outage, which cuts against this very directory's original
+# "independent of the cluster" design goal). Reached over the LAN via the
+# NodePort added in ADR 0020 (192.168.0.47:30432), since infra-node-01 is
+# outside the k3s cluster and has no in-cluster Service DNS to use.
+#
+# GOTCHA: VIKUNJA_DATABASE_PORT is silently ignored for a postgres
+# connection (confirmed against Vikunja v2.5.0 -- ran `vikunja migrate`
+# with DATABASE_PORT set to 30432 and it still tried port 5432). The
+# working fix is embedding the port directly in DATABASE_HOST as
+# "host:port" instead, which is why VIKUNJA_DATABASE_PORT is absent below
+# rather than just set to 30432 -- that would silently not work.
 #
 # Data persists in ./data (next to this file, NOT inside the git repo's
-# tracked content — see .gitignore in this directory).
+# tracked content — see .gitignore in this directory). The old SQLite
+# database is archived at ./data/db/vikunja.db.pre-postgres-migration-backup-20260831
+# as a rollback path, not deleted.
 #
 # Requires a .env file (also gitignored, not checked in) next to this
-# file with a random JWT signing secret:
-#   echo "VIKUNJA_JWT_SECRET=$(openssl rand -base64 32)" > .env
+# file with a random JWT signing secret AND the Postgres role's password
+# (see infra/k8s/base/postgres/04-vikunja-role-db.yaml for how that role
+# was created):
+#   echo "VIKUNJA_JWT_SECRET=$(openssl rand -base64 32)" >> .env
+#   echo "VIKUNJA_DATABASE_PASSWORD=<the vikunja role's password>" >> .env
 #
 # Deploy:
 #   cd infra/infra-node-01/vikunja
@@ -58,8 +77,14 @@ services:
       # rather than assuming the hostname just works everywhere.
       VIKUNJA_SERVICE_PUBLICURL: "http://kanban.homelab.local:3456/"
       VIKUNJA_SERVICE_SECRET: "${VIKUNJA_JWT_SECRET}"
-      VIKUNJA_DATABASE_TYPE: sqlite
-      VIKUNJA_DATABASE_PATH: /db/vikunja.db
+      VIKUNJA_DATABASE_TYPE: postgres
+      # Port embedded in the host string, NOT a separate DATABASE_PORT --
+      # see the GOTCHA note above.
+      VIKUNJA_DATABASE_HOST: "192.168.0.47:30432"
+      VIKUNJA_DATABASE_DATABASE: vikunja
+      VIKUNJA_DATABASE_USER: vikunja
+      VIKUNJA_DATABASE_PASSWORD: "${VIKUNJA_DATABASE_PASSWORD}"
+      VIKUNJA_DATABASE_SSLMODE: disable
     volumes:
       - ./data/files:/app/vikunja/files
       - ./data/db:/db
