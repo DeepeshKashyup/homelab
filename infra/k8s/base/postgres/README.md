@@ -37,12 +37,14 @@ sudo k3s kubectl get secret postgres-superuser -n postgres -o jsonpath='{.data.p
 
 ## Connecting
 
-**No NodePort** — Postgres is backend-only infrastructure, reached in-cluster via the `postgres-rw` (read/write, primary), `postgres-ro` (read-only replicas — none yet, single instance), and `postgres-r` (any instance) Services CNPG creates automatically. Apps running in-cluster should use `postgres-rw.postgres.svc.cluster.local:5432`.
+**In-cluster apps**: reach Postgres via the `postgres-rw` (read/write, primary), `postgres-ro` (read-only replicas — none yet, single instance), and `postgres-r` (any instance) Services CNPG creates automatically — `postgres-rw.postgres.svc.cluster.local:5432`.
 
-For ad-hoc admin access from the Dell G5, tunnel in instead of exposing the DB on the LAN:
+**From the LAN (e.g. a GUI client like TablePlus on a jump box)**: `<any-node-ip>:30432` (e.g. `192.168.0.47:30432`) — a NodePort added 2026-08-31 per **[ADR 0020](../../../docs/decisions/0020-postgres-nodeport-reversal.md)**, which reverses ADR 0015's original ClusterIP-only decision. Read that ADR before assuming this is risk-free: it's a conscious tradeoff (eliminating tunnel-maintenance friction) accepting that anything on the home LAN with valid credentials can now reach Postgres directly, not a reassessment that the exposure risk itself went away.
+
+`kubectl port-forward` still works and avoids that LAN exposure entirely, if preferred for a given task:
 
 ```bash
-sudo k3s kubectl port-forward -n postgres svc/postgres-rw 5432:5432
+kubectl port-forward -n postgres svc/postgres-rw 5432:5432
 # then, from another terminal / another machine reaching control-plane-01:
 psql -h localhost -U app -d app
 ```

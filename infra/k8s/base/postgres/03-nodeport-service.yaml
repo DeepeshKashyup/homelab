@@ -1,0 +1,25 @@
+# Standalone NodePort Service exposing Postgres's read-write endpoint on the
+# LAN -- see ADR 0020 for why (reverses ADR 0015's ClusterIP-only decision,
+# to eliminate the friction of a manually-maintained kubectl port-forward
+# tunnel for GUI DB-client access).
+#
+# Deliberately a SEPARATE Service, not an edit to CNPG's own auto-created
+# postgres-rw Service -- that one is actively reconciled by the operator,
+# and hand-editing its `type` would likely get reverted on the next
+# reconcile. This Service reuses CNPG's own primary-instance pod selector
+# instead, so it always routes to whichever pod is currently primary.
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-nodeport
+  namespace: postgres
+spec:
+  type: NodePort
+  selector:
+    cnpg.io/cluster: postgres
+    cnpg.io/instanceRole: primary
+  ports:
+    - port: 5432
+      targetPort: 5432
+      nodePort: 30432
