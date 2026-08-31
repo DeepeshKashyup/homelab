@@ -44,10 +44,10 @@ Then deploy the GPU exporter on `gpu-node-01` per `infra/gpu-node-01/nvidia-gpu-
 
 ## Postgres migration verification checklist (2026-08-30)
 
-- [ ] `kubectl get database,databaserole -n postgres grafana` shows both reconciled successfully.
-- [ ] Grafana pod restarts cleanly after the `helm upgrade`, `/api/health` (or just loading the UI) works.
-- [ ] The `gpu-node-correlation` ConfigMap-provisioned dashboard still shows up (confirms provisioned dashboards are unaffected by the DB backend change).
-- [ ] `kubectl exec -n postgres postgres-1 -- psql -U grafana -d grafana -c '\dt'` shows Grafana's own tables, confirming it's actually writing to Postgres and not silently falling back to SQLite.
+- [x] `kubectl get database,databaserole -n postgres grafana` shows both reconciled successfully. — confirmed 2026-08-30 (hit the `template1` lock gotcha first, see `../postgres/README.md`).
+- [x] Grafana pod restarts cleanly after the `helm upgrade` (revision 2), UI reachable (`302` redirect to login at `http://192.168.0.47:30300/`).
+- [x] The `gpu-node-correlation` ConfigMap-provisioned dashboard still shows up — confirmed via the `grafana-sc-dashboard` sidecar's logs (`Writing /tmp/dashboards/gpu-node-correlation.json`, reload returned `200 OK`).
+- [x] `kubectl exec -n postgres postgres-1 -- psql -U grafana -d grafana -c '\dt'` shows Grafana's own tables, confirming it's actually writing to Postgres and not silently falling back to SQLite. — confirmed 2026-08-30 (note: needs `-h localhost` + `PGPASSWORD` for password auth — the bare form hits peer auth on the local socket).
 
 ## Access Grafana
 

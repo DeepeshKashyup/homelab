@@ -55,6 +55,6 @@ Fix: Admin Panel → Settings → Models (or Workspace → Models, depending on 
 
 ## Postgres migration verification checklist (2026-08-30)
 
-- [ ] `kubectl get database,databaserole -n postgres openwebui` shows both reconciled successfully.
-- [ ] Open WebUI's first-run signup works again (expected — this was a deliberate fresh start, not a data migration; old chat history stays on the previous SQLite PVC, unused going forward).
-- [ ] `kubectl exec -n postgres postgres-1 -- psql -U openwebui -d openwebui -c '\dt'` shows Open WebUI's own tables, confirming it's actually writing to Postgres and not silently falling back to SQLite.
+- [x] `kubectl get database,databaserole -n postgres openwebui` shows both reconciled successfully. — confirmed 2026-08-30 (hit the `template1` lock gotcha first, see `../postgres/README.md`).
+- [x] Open WebUI's first-run signup works again (expected — this was a deliberate fresh start, not a data migration; old chat history stays on the previous SQLite PVC, unused going forward). — pod restarted clean, 30+ Alembic migrations ran against Postgres on first boot.
+- [x] `kubectl exec -n postgres postgres-1 -- psql -U openwebui -d openwebui -c '\dt'` shows Open WebUI's own tables, confirming it's actually writing to Postgres and not silently falling back to SQLite. — confirmed 2026-08-30 (note: needs `-h localhost` + `PGPASSWORD` for password auth — the bare form hits peer auth on the local socket and fails for a non-matching OS user).

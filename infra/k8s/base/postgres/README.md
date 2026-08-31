@@ -66,6 +66,14 @@ spec:
 
 (CNPG reconciles the actual `CREATE DATABASE`/`CREATE ROLE` inside the cluster — no manual `psql` needed. Check the installed operator's version docs for the exact `Database`/`DatabaseRole` CRD fields if this doesn't apply cleanly; CNPG has been actively adding declarative role/database management across recent releases.)
 
+### Gotcha: `Database` stuck on "source database template1 is being accessed by other users"
+
+Hit migrating Open WebUI and Grafana to their own databases (2026-08-30): both `Database` resources sat with `APPLIED: false` for 5+ minutes straight, `kubectl describe` showing `ERROR: source database "template1" is being accessed by other users (SQLSTATE 55006)` — `CREATE DATABASE` refuses to run while *any* other session is connected to its template, and this isn't a one-off transient blip that clears itself on the next reconcile.
+
+Found the actual holder via `kubectl exec -n postgres postgres-1 -- psql -U postgres -c "SELECT pid, usename, datname, state, query FROM pg_stat_activity WHERE datname = 'template1';"` — a long-idle connection (`SELECT 1;`, likely a stray health-check/liveness-probe connection) sitting on `template1`. Cleared it with `SELECT pg_terminate_backend(<pid>);`, and the pending `Database` resources reconciled successfully within seconds on CNPG's next pass.
+
+If a new `Database` resource ever sits stuck on this same error, check `pg_stat_activity` for `template1` first before assuming the manifest is wrong. A more permanent fix worth trying next time: set `spec.template: template0` on the `Database` CRD (a field CNPG supports) — `template0` is never used for direct connections in normal operation, so it shouldn't be vulnerable to this at all. Not yet applied retroactively to `n8n`/`openwebui`/`grafana`'s existing `Database` resources since `template` "cannot be changed" per the CRD's own field description (would need a fresh `Database` object, not an edit).
+
 ## Backups
 
 Data lives on `control-plane-01`'s local disk (`local-path` StorageClass) — plain node-local storage, **not redundant**. If that disk or node is lost, the data is lost unless it's been backed up first. That's what `02-postgres-backup-cronjob.yaml` is for.
