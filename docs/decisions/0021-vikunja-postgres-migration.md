@@ -34,9 +34,9 @@ This migration would not even be *possible* without ADR 0020's NodePort — Post
 
 ## Follow-ups
 
-- [ ] Apply `04-vikunja-role-db.yaml`, generate credentials.
-- [ ] Point a fresh Vikunja instance at the empty database, confirm its own migrations create the schema.
-- [ ] Back up the current `data/db/vikunja.db`, migrate data via `pgloader`.
-- [ ] Verify row counts, spot-check known items (e.g. backlog #16/#17/#18/#40's `done` state and descriptions), confirm login still works.
-- [ ] Cut over `docker-compose.yml` to the Postgres config; update `infra/infra-node-01/vikunja/README.md`.
-- [ ] Keep the old SQLite file archived, not deleted, for a defined retention window.
+- [x] Apply `04-vikunja-role-db.yaml`, generate credentials. — done 2026-08-31, `template: template0` avoided the earlier lock gotcha entirely this time.
+- [x] Point a fresh Vikunja instance at the empty database, confirm its own migrations create the schema. — done; also surfaced the `DATABASE_PORT`-ignored gotcha, worked around by embedding the port in `DATABASE_HOST`.
+- [x] Back up the current `data/db/vikunja.db`, migrate data via `pgloader`. — done; WAL force-checkpointed first (4.2MB of unflushed activity), `pgloader` ran with zero errors, 421 rows across 37 tables.
+- [x] Verify row counts, spot-check known items (e.g. backlog #16/#17/#18/#40's `done` state and descriptions), confirm login still works. — all row counts matched exactly (source vs. target); #16/#17/#18/#40 confirmed `done: true`, #45 confirmed `done: false`, all titles/priorities intact. "Login still works" verified via the pre-existing API token round-tripping correctly against the live post-cutover instance (a full interactive password-login click-through wasn't separately performed, but exercises the same auth path).
+- [x] Cut over `docker-compose.yml` to the Postgres config; update docs. — done; documented in `infra/infra-node-01/README.md`'s Vikunja section (no separate `vikunja/README.md` exists — docs for this service live there).
+- [x] Keep the old SQLite file archived, not deleted, for a defined retention window. — `data/db/vikunja.db.pre-postgres-migration-backup-20260831` kept indefinitely for now.

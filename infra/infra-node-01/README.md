@@ -52,6 +52,19 @@ The router (ISP-provided) doesn't expose DHCP-wide DNS server configuration with
 
    **Gotcha hit during initial setup**: `VIKUNJA_SERVICE_PUBLICURL` isn't just cosmetic — the frontend uses it as the base URL for its own API calls (registration, login, everything). Setting it to `kanban.homelab.local` *before* the DNS rewrite + client DNS pointing above were actually in place caused a generic "network error" on account creation, because the browser couldn't resolve that hostname at all yet. Keep this set to the working IP until the hostname is verified resolving from wherever you're accessing it.
 
+### Migrated to the shared Postgres cluster (2026-08-31)
+
+Vikunja's database moved from local SQLite to a dedicated `vikunja` database on the shared CloudNativePG cluster — see [ADR 0021](../../../docs/decisions/0021-vikunja-postgres-migration.md) for the full reasoning, including the real tradeoff accepted: Vikunja now depends on `control-plane-01`/k3s/Postgres being reachable, which cuts directly against this section's own "still reachable if the cluster is down" opening line. Reached over the LAN NodePort added in [ADR 0020](../../../docs/decisions/0020-postgres-nodeport-reversal.md) (`192.168.0.47:30432`), since this node is outside the k3s cluster and has no in-cluster Service DNS to use.
+
+**Gotcha hit during migration**: `VIKUNJA_DATABASE_PORT` is silently ignored for a postgres connection (confirmed against Vikunja v2.5.0) — it always tried port `5432` regardless of what `DATABASE_PORT` was set to, both via environment variables and a mounted `config.yml`. The working fix, now in `docker-compose.yml`: embed the port directly in `VIKUNJA_DATABASE_HOST` as `"192.168.0.47:30432"` rather than a separate `DATABASE_PORT` field.
+
+**Migration method** (real data migration, not a fresh start — unlike the Open WebUI/Grafana Postgres migrations, this is the actual backlog):
+1. Stopped the container, force-checkpointed the SQLite WAL via Python's `sqlite3` module (`PRAGMA wal_checkpoint(TRUNCATE)`) — the `-wal` file was 4.2MB against a 638KB main db file, meaning a lot of recent activity hadn't been folded in yet; skipping this step would have silently migrated stale data.
+2. Backed up the checkpointed file (`data/db/vikunja.db.pre-postgres-migration-backup-20260831`, kept indefinitely as a rollback path, never modified).
+3. Ran a throwaway Vikunja container's own `migrate` command against the new empty Postgres database first, so the schema it created matches exactly what this Vikunja version expects — rather than trusting a generic tool to infer it.
+4. Used `pgloader` (`dimitri/pgloader`, run as a throwaway container, not installed on this node) with `create no tables, data only` to load rows into that already-correct schema. Needed the data directory mounted **read-write**, not `:ro` — SQLite couldn't open the file at all read-only (needs to create its own lock/journal files even for a read connection).
+5. Verified: row counts matched exactly between source and target for every table checked (`tasks 45=45`, `projects 2=2`, `users 1=1`, `buckets 9=9`, `sessions 1=1`), spot-checked specific known tasks' `done`/`priority`/`title` fields matched, and confirmed the live instance's API (including the pre-existing API token, which round-tripped correctly) returns the expected task counts post-cutover.
+
 ## Uptime Kuma (monitoring)
 
 Third service on this node — uptime/status monitoring, starting with `gpu-node-01` (motivated by its recurring GPU hang incidents, see CLAUDE.md — a ping/TCP monitor at least catches a full node hang even without deep GPU health metrics). Same off-cluster reasoning as AdGuard Home and Vikunja.
