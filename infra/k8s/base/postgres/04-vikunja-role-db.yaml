@@ -1,0 +1,62 @@
+# Vikunja's own database + role on the shared Postgres cluster -- same
+# pattern as n8n/Open WebUI/Grafana, EXCEPT Vikunja itself is NOT a k8s
+# workload (it runs via docker-compose on infra-node-01, outside the k3s
+# cluster entirely, per ADR 0013 -- kept independent of the cluster it
+# tracks work for). This file lives under postgres/ rather than a Vikunja
+# manifest directory because there isn't one; Vikunja reaches this database
+# over the LAN via the NodePort added in ADR 0020
+# (infra/k8s/base/postgres/03-nodeport-service.yaml), not an in-cluster
+# Service DNS name.
+#
+# See ADR 0021 for the full migration plan and the real tradeoff this
+# accepts: Vikunja becomes unusable during a cluster/control-plane-01
+# outage once its database lives here, which directly cuts against ADR
+# 0013's original "survives if the cluster goes down" reasoning. Unlike
+# the Open WebUI/Grafana Postgres migrations, this one is a REAL data
+# migration (the actual backlog, not disposable state) -- see
+# infra/infra-node-01/vikunja/README.md for the migration steps.
+#
+# template: template0, not the default template1 -- deliberately avoiding
+# the "source database template1 is being accessed by other users" lock
+# gotcha hit migrating Open WebUI/Grafana (infra/k8s/base/postgres/README.md's
+# Gotcha section). template0 is never used for direct connections in
+# normal operation, so it isn't vulnerable to that in the first place.
+#
+# passwordSecret references a Secret NOT checked in here -- create it once,
+# out of band, before applying this file. Two different consumers need the
+# SAME password in two different forms (Secrets don't cross the k8s/non-k8s
+# boundary at all here):
+#
+#   PASS=$(openssl rand -hex 24)
+#   kubectl create secret generic vikunja-db-owner -n postgres \
+#     --type=kubernetes.io/basic-auth \
+#     --from-literal=username=vikunja --from-literal=password="$PASS"
+#   echo "VIKUNJA_DATABASE_PASSWORD=$PASS"   # goes into infra-node-01's
+#                                             # gitignored .env file, NOT a
+#                                             # k8s Secret -- Vikunja isn't
+#                                             # a k8s workload.
+
+apiVersion: postgresql.cnpg.io/v1
+kind: DatabaseRole
+metadata:
+  name: vikunja
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: vikunja
+  login: true
+  passwordSecret:
+    name: vikunja-db-owner
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: vikunja
+  namespace: postgres
+spec:
+  cluster:
+    name: postgres
+  name: vikunja
+  owner: vikunja
+  template: template0
