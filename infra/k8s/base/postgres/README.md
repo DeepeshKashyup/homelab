@@ -110,6 +110,14 @@ ls -lh /mnt/backup-plus/postgres-backups   # on control-plane-01
 
 This is a logical (SQL-text) backup, not CNPG's native physical backup + point-in-time recovery (`barman-cloud`) — that needs an S3-compatible target (e.g. a future MinIO instance), which doesn't exist on this platform yet. Upgrading to that is a tracked backlog item, not built today.
 
+### Incident: backups silently stopped for days, nothing alerted (2026-08-30/31)
+
+Found the `postgres-backup` CronJob's pod stuck in `ContainerCreating` for 19+ hours while checking something unrelated — `kubectl describe` showed `MountVolume.SetUp failed ... /mnt/backup-plus/postgres-backups is not a directory`. Root cause: the external "Backup Plus" USB drive was physically disconnected from `control-plane-01` (`lsblk` showed no `sdb` device at all, `blkid` had no record of its UUID). The `nofail` fstab option (deliberately set so a missing drive doesn't hang boot) did exactly its job — and also meant **nothing surfaced this failure anywhere**. No alert, no email, just a silently stuck Job that would have kept failing every week indefinitely.
+
+Fixed by physically reconnecting the drive, `sudo mount -a` (picks up the existing `/etc/fstab` entry), deleting the stuck Job, and re-running the "test it immediately" steps above to confirm a real backup landed.
+
+**This is a real monitoring gap, not just a one-off mishap** — Uptime Kuma already exists on `infra-node-01` for exactly this kind of "is X actually working" check, but nothing watches the backup CronJob today. Tracked as a new backlog item: add an Uptime Kuma monitor (or a Prometheus alert, now that Grafana/Prometheus exist) that checks either the CronJob's last-success timestamp or the age of the newest file under `/mnt/backup-plus/postgres-backups`, so a silent multi-day backup gap like this one gets caught in hours, not by accident.
+
 ## First-deploy verification checklist
 
 - `sudo k3s kubectl get cluster -n postgres` shows healthy, one pod `Running`.
