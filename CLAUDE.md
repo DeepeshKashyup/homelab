@@ -73,6 +73,7 @@ On the portfolio side, Deepesh has drafted resume bullet points for a project se
 
 ## On the horizon
 
+- **Next goal: EdgeNest** (`docs/product/edgenest-prd.md`, v1.2) — edge-first personal AI assistant: Android/LiteRT phone → stateless GCP Cloud Run relay → Cloudflare Tunnel → homelab agent in k3s → Mac mini Ollama / k3s tools / RTX. Absorbs ADR 0022's Ops Agent. Phone → homelab image/video generation is Phase 3, gated on consolidating Ollama onto the Mac mini. Three ADRs needed first (PRD §33): Ollama consolidation onto the Mac mini, agent placement, private-link mechanism.
 - Installing the Kubernetes control plane on PC 2 and joining PC 1 as a GPU-scheduled worker — done
 - Migrating the CNI from bundled flannel to Cilium (see `docs/decisions/0007`), before real workloads are deployed
 - Validating GPU availability/scheduling in Kubernetes on `gpu-node-01` (NVIDIA device plugin) — done, including an end-to-end `nvidia-smi` smoke test
